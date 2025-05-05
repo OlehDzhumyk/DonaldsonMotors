@@ -7,6 +7,13 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(80);          // HTTP on port 80
+
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
