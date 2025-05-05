@@ -10,7 +10,6 @@ namespace DonaldsonMotors.API.Data
         public AppDbContext(DbContextOptions<AppDbContext> opts)
             : base(opts) { }
 
-        // Only your domain entity types here:
         public DbSet<Customer> Customers { get; set; } = null!;
         public DbSet<Employee> Employees { get; set; } = null!;
         public DbSet<Vehicle> Vehicles { get; set; } = null!;
