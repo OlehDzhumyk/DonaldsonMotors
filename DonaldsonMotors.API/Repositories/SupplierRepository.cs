@@ -1,5 +1,5 @@
 ﻿using DonaldsonMotors.API.Data;
-using DonaldsonMotors.API.Interfaces;
+using DonaldsonMotors.API.Interfaces.Repositories;
 using DonaldsonMotors.API.Models;
 using Microsoft.EntityFrameworkCore;
 

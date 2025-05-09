@@ -1,11 +1,13 @@
+
 services:
+
   db:
     image: postgres:15
     restart: always
     environment:
-      POSTGRES_USER: dm_user
+      POSTGRES_USER:     dm_user
       POSTGRES_PASSWORD: dm_pass
-      POSTGRES_DB: donaldson
+      POSTGRES_DB:       donaldson
     volumes:
       - db-data:/var/lib/postgresql/data
     ports:
@@ -17,14 +19,27 @@ services:
       dockerfile: Dockerfile
     depends_on:
       - db
+    # load .env in root of this compose file
     env_file:
       - .env
     environment:
-      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT}
-      ConnectionStrings__Default: ${DB_CONN}
-      Jwt__Key: ${JWT_KEY}
+      # ASP.NET Core environment
+      ASPNETCORE_ENVIRONMENT:      ${ASPNETCORE_ENVIRONMENT}
+
+      # EF Core/Postgres connection
+      ConnectionStrings__Default:  ${DB_CONN}
+
+      # JWT settings
+      Jwt__Key:            ${JWT_KEY}
+      Jwt__Issuer:         ${JWT_ISSUER}
+      Jwt__Audience:       ${JWT_AUDIENCE}
+      Jwt__ExpiryMinutes:  ${JWT_EXPIRYMINUTES}
+
+      # Tell Kestrel to listen on both HTTP and HTTPS
+      ASPNETCORE_URLS:     "http://+:80"
     ports:
-      - 5000:80
+      - "5000:80"    # HTTP
+      # - "5001:8081" # HTTPS
 
 volumes:
   db-data:

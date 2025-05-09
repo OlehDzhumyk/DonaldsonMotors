@@ -1,6 +1,6 @@
 ﻿using DonaldsonMotors.API.Models;
 
-namespace DonaldsonMotors.API.Interfaces
+namespace DonaldsonMotors.API.Interfaces.Repositories
 {
     public interface IBookingRepository
     {

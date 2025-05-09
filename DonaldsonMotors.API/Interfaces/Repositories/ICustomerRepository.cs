@@ -1,7 +1,7 @@
 ﻿using DonaldsonMotors.API.Models;
 using System.Threading.Tasks;
 
-namespace DonaldsonMotors.API.Interfaces
+namespace DonaldsonMotors.API.Interfaces.Repositories
 {
     public interface ICustomerRepository
     {

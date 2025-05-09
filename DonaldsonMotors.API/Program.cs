@@ -1,28 +1,90 @@
-using DonaldsonMotors.API.Data;
-using DonaldsonMotors.API.Interfaces;
-using DonaldsonMotors.API.Repositories;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Mvc.Versioning;
+using DonaldsonMotors.API.Data;
+using DonaldsonMotors.API.Interfaces.Repositories;
+using DonaldsonMotors.API.Repositories;
+using DonaldsonMotors.API.Interfaces.Services;
+using DonaldsonMotors.API.Services;
+using DonaldsonMotors.API.Models;
+using DonaldsonMotors.API.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
-#region Add MVC + Swagger
+#region — Configuration from env/appsettings —--------------------------------------------------
+// 1) Connection string
+var defaultConn = builder.Configuration.GetConnectionString("Default");
+
+// 2) JWT settings
+var jwtKey = builder.Configuration["Jwt:Key"]!;
+var jwtIssuer = builder.Configuration["Jwt:Issuer"];
+var jwtAudience = builder.Configuration["Jwt:Audience"];
+var jwtExpiryString = builder.Configuration["Jwt:ExpiryMinutes"] ?? "60";
+var jwtExpiryMin = int.Parse(jwtExpiryString);
+#endregion
+
+#region — Service Registrations —---------------------------------------------------------------
+// **NEW**: Register controllers
 builder.Services.AddControllers();
-// Swagger/OpenAPI
+
+// 1. EF Core: PostgreSQL
+builder.Services.AddDbContext<AppDbContext>(opts =>
+    opts.UseNpgsql(defaultConn));
+
+// 2. ASP.NET Core Identity
+builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(opts =>
+{
+    opts.User.RequireUniqueEmail = true;
+    opts.Password.RequiredLength = 6;
+    opts.Password.RequireDigit = true;
+})
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
+
+// 3. JWT Authentication
+var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
+builder.Services
+    .AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.RequireHttpsMetadata = true;
+        options.SaveToken = true;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
+            ValidateIssuer = !string.IsNullOrEmpty(jwtIssuer),
+            ValidIssuer = jwtIssuer,
+            ValidateAudience = !string.IsNullOrEmpty(jwtAudience),
+            ValidAudience = jwtAudience,
+            ClockSkew = TimeSpan.Zero
+        };
+    });
+
+// 4. Authorization
+builder.Services.AddAuthorization();
+
+// 5. API Versioning
+builder.Services.AddApiVersioning(options =>
+{
+    options.DefaultApiVersion = new Microsoft.AspNetCore.Mvc.ApiVersion(1, 0);
+    options.AssumeDefaultVersionWhenUnspecified = true;
+    options.ReportApiVersions = true;
+    options.ApiVersionReader = new UrlSegmentApiVersionReader();
+});
+
+// 6. Swagger / OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-#endregion
 
-#region Configure Database (PostgreSQL)
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(
-        builder.Configuration.GetConnectionString("Default")
-    // Optional: specify MigrationsAssembly if your migrations live elsewhere:
-    // , npgsqlOptions => npgsqlOptions.MigrationsAssembly("DonaldsonMotors.API")
-    )
-);
-#endregion
-
-#region Register Repositories (DI)
+// 7. Repository layer (DI)
 builder.Services.AddScoped<IBookingRepository, BookingRepository>();
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
@@ -32,51 +94,37 @@ builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddScoped<IItemRepository, ItemRepository>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();
-#endregion
 
-#region Configure Kestrel Endpoints
+// 8. Service layer (DI)
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IBookingService, BookingService>();
+// …other service registrations…
+
+// 9. Kestrel endpoints
 builder.WebHost.ConfigureKestrel(options =>
 {
-    // HTTP on port 80 (mapped in docker-compose to 5000:80)
     options.ListenAnyIP(80);
-
-    // HTTPS on port 8081 (mapped to 5001:8081), mounts cert via env vars
-    // options.ListenAnyIP(8081, listenOptions => listenOptions.UseHttps());
+    //options.ListenAnyIP(8081, listen => listen.UseHttps());
 });
 #endregion
 
 var app = builder.Build();
 
-#region Auto‐Apply EF Migrations on Startup
+#region — Apply EF Migrations at Startup —-------------------------------------------------------
 using (var scope = app.Services.CreateScope())
 {
-    var services = scope.ServiceProvider;
-    try
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var pending = await db.Database.GetPendingMigrationsAsync();
+    if (pending.Any())
     {
-        var dbContext = services.GetRequiredService<AppDbContext>();
-        var pending = await dbContext.Database.GetPendingMigrationsAsync();
-
-        if (pending.Any())
-        {
-            Console.WriteLine("Applying database migrations...");
-            await dbContext.Database.MigrateAsync();
-            Console.WriteLine("Database migrations applied successfully.");
-        }
-        else
-        {
-            Console.WriteLine("No pending migrations to apply.");
-        }
-    }
-    catch (Exception ex)
-    {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while migrating the database.");
-        // decide: rethrow or swallow depending on your policy
+        Console.WriteLine("Applying database migrations...");
+        await db.Database.MigrateAsync();
+        Console.WriteLine("Migrations complete.");
     }
 }
 #endregion
 
-#region HTTP Request Pipeline
+#region — HTTP Request Pipeline —----------------------------------------------------------------
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -84,7 +132,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAuthentication();   // must come before UseAuthorization
 app.UseAuthorization();
+
 app.MapControllers();
 #endregion
 
