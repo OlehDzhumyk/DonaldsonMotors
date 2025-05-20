@@ -1,16 +1,14 @@
-﻿using DonaldsonMotors.API.Models;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+﻿using DonaldsonMotors.API.Data.Entities;
 
 namespace DonaldsonMotors.API.Interfaces.Repositories
 {
     public interface ISupplierRepository
     {
-        Task<Supplier?> GetByIdAsync(int id);
-        Task<IEnumerable<Supplier>> ListAsync();
-        Task AddAsync(Supplier supplier);
-        void Update(Supplier supplier);
-        void Delete(Supplier supplier);
+        Task<SupplierEntity?> GetByIdAsync(int id);
+        Task<IEnumerable<SupplierEntity>> ListAsync();
+        Task AddAsync(SupplierEntity supplier);
+        void Update(SupplierEntity supplier);
+        void Delete(SupplierEntity supplier);
         Task SaveChangesAsync();
     }
 }

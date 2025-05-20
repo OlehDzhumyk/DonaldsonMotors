@@ -3,13 +3,12 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.AspNetCore.Mvc.Versioning;
 using DonaldsonMotors.API.Data;
 using DonaldsonMotors.API.Interfaces.Repositories;
 using DonaldsonMotors.API.Repositories;
 using DonaldsonMotors.API.Interfaces.Services;
 using DonaldsonMotors.API.Services;
-using DonaldsonMotors.API.Models;
+using DonaldsonMotors.API.Data.Entities;
 using DonaldsonMotors.API.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,7 +26,7 @@ var jwtExpiryMin = int.Parse(jwtExpiryString);
 #endregion
 
 #region — Service Registrations —---------------------------------------------------------------
-// **NEW**: Register controllers
+// Register controllers
 builder.Services.AddControllers();
 
 // 1. EF Core: PostgreSQL
@@ -71,20 +70,11 @@ builder.Services
 // 4. Authorization
 builder.Services.AddAuthorization();
 
-// 5. API Versioning
-builder.Services.AddApiVersioning(options =>
-{
-    options.DefaultApiVersion = new Microsoft.AspNetCore.Mvc.ApiVersion(1, 0);
-    options.AssumeDefaultVersionWhenUnspecified = true;
-    options.ReportApiVersions = true;
-    options.ApiVersionReader = new UrlSegmentApiVersionReader();
-});
-
-// 6. Swagger / OpenAPI
+// 5. Swagger / OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// 7. Repository layer (DI)
+// 6. Repository layer (DI)
 builder.Services.AddScoped<IBookingRepository, BookingRepository>();
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
@@ -95,12 +85,13 @@ builder.Services.AddScoped<IItemRepository, ItemRepository>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();
 
-// 8. Service layer (DI)
+// 7. Service layer (DI)
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
-// …other service registrations…
+builder.Services.AddScoped<IUserService, UserService>();
 
-// 9. Kestrel endpoints
+
+// 8. Kestrel endpoints
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.ListenAnyIP(80);

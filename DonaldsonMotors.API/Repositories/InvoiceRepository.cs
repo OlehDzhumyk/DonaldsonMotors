@@ -1,6 +1,6 @@
 ﻿using DonaldsonMotors.API.Data;
+using DonaldsonMotors.API.Data.Entities;
 using DonaldsonMotors.API.Interfaces.Repositories;
-using DonaldsonMotors.API.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace DonaldsonMotors.API.Repositories
@@ -10,25 +10,25 @@ namespace DonaldsonMotors.API.Repositories
         private readonly AppDbContext _ctx;
         public InvoiceRepository(AppDbContext ctx) => _ctx = ctx;
 
-        public async Task<Invoice?> GetByIdAsync(int id) =>
+        public async Task<InvoiceEntity?> GetByIdAsync(int id) =>
             await _ctx.Invoices
-                      .Include(i => i.Booking)
-                      .Include(i => i.Payments)
-                      .FirstOrDefaultAsync(i => i.Id == id);
+                .Include(i => i.Booking)
+                .Include(i => i.Payments)
+                .FirstOrDefaultAsync(i => i.Id == id);
 
-        public async Task<IEnumerable<Invoice>> ListAsync() =>
+        public async Task<IEnumerable<InvoiceEntity>> ListAsync() =>
             await _ctx.Invoices.ToListAsync();
 
-        public async Task AddAsync(Invoice invoice) =>
-            await _ctx.Invoices.AddAsync(invoice);
+        public async Task AddAsync(InvoiceEntity invoiceEntity) =>
+            await _ctx.Invoices.AddAsync(invoiceEntity);
 
-        public void Update(Invoice invoice) =>
-            _ctx.Invoices.Update(invoice);
+        public void Update(InvoiceEntity invoiceEntity) =>
+            _ctx.Invoices.Update(invoiceEntity);
 
-        public void Delete(Invoice invoice) =>
-            _ctx.Invoices.Remove(invoice);
+        public void Delete(InvoiceEntity invoiceEntity) =>
+            _ctx.Invoices.Remove(invoiceEntity);
 
-        public Task SaveChangesAsync() =>
-            _ctx.SaveChangesAsync();
+        public async Task SaveChangesAsync() =>
+            await _ctx.SaveChangesAsync();
     }
 }

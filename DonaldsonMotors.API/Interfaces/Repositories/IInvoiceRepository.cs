@@ -1,4 +1,4 @@
-﻿using DonaldsonMotors.API.Models;
+﻿using DonaldsonMotors.API.Data.Entities;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -6,11 +6,11 @@ namespace DonaldsonMotors.API.Interfaces.Repositories
 {
     public interface IInvoiceRepository
     {
-        Task<Invoice?> GetByIdAsync(int id);
-        Task<IEnumerable<Invoice>> ListAsync();
-        Task AddAsync(Invoice invoice);
-        void Update(Invoice invoice);
-        void Delete(Invoice invoice);
+        Task<InvoiceEntity?> GetByIdAsync(int id);
+        Task<IEnumerable<InvoiceEntity>> ListAsync();
+        Task AddAsync(InvoiceEntity invoiceEntity);
+        void Update(InvoiceEntity invoiceEntity);
+        void Delete(InvoiceEntity invoiceEntity);
         Task SaveChangesAsync();
     }
 }

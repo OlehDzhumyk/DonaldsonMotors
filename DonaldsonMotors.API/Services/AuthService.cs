@@ -1,11 +1,14 @@
-﻿using DonaldsonMotors.API.Interfaces.Services;
-using DonaldsonMotors.API.Models;
+﻿// Services/AuthService.cs
+using DonaldsonMotors.API.Data.Entities;
+using DonaldsonMotors.API.Domain.Models;
+using DonaldsonMotors.API.DTOs.Auth;
+using DonaldsonMotors.API.Interfaces.Services;
+using DonaldsonMotors.API.Mappers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-
 
 namespace DonaldsonMotors.API.Services
 {
@@ -25,64 +28,58 @@ namespace DonaldsonMotors.API.Services
             _config = config;
         }
 
-        public async Task<AuthResult> RegisterAsync(RegisterModel model)
+        public async Task<RegisterResponseDto> RegisterCustomerAsync(RegisterRequestDto dto)
         {
-            // 1) Create correct subtype
-            ApplicationUser user = model.Role == Roles.Customer
-                ? new Customer()
-                : (ApplicationUser)new Employee();
-
-            user.UserName = model.Email;
-            user.Email = model.Email;
-            user.FullName = model.FullName;
-
-            var createResult = await _userMgr.CreateAsync(user, model.Password);
-            if (!createResult.Succeeded)
-                return new AuthResult
-                {
-                    Succeeded = false,
-                    Errors = createResult.Errors.Select(e => e.Description)
-                };
-
-            // 2) Ensure the role exists
-            if (!await _roleMgr.RoleExistsAsync(model.Role))
-            {
-                var role = new ApplicationRole
-                {
-                    Name = model.Role,
-                    NormalizedName = model.Role.ToUpperInvariant()
-                };
-                await _roleMgr.CreateAsync(role);
-            }
-
-            // 3) Assign the user to that role
-            await _userMgr.AddToRoleAsync(user, model.Role);
-
-            // 4) Issue JWT
-            var token = await GenerateJwtTokenAsync(user);
-            return new AuthResult { Succeeded = true, Token = token };
+            dto.Role = Roles.Customer;
+            var token = await CreateUserAndTokenAsync(dto);
+            return BuildRegisterResponse(token);
         }
 
-        public async Task<AuthResult> LoginAsync(LoginModel model)
+        public async Task<RegisterResponseDto> RegisterStaffAsync(RegisterRequestDto dto)
         {
-            var user = await _userMgr.FindByEmailAsync(model.Email);
-            if (user == null || !await _userMgr.CheckPasswordAsync(user, model.Password))
-                return new AuthResult
-                {
-                    Succeeded = false,
-                    Errors = new[] { "Invalid credentials." }
-                };
+            if (dto.Role == Roles.Customer)
+                throw new InvalidOperationException("Use RegisterCustomerAsync for Customers");
 
-            var token = await GenerateJwtTokenAsync(user);
-            return new AuthResult { Succeeded = true, Token = token };
+            var token = await CreateUserAndTokenAsync(dto);
+            return BuildRegisterResponse(token);
+        }
+
+        public async Task<LoginResponseDto> LoginAsync(LoginRequestDto dto)
+        {
+            var user = await _userMgr.FindByEmailAsync(dto.Email)
+                       ?? throw new UnauthorizedAccessException("Invalid credentials");
+
+            if (!await _userMgr.CheckPasswordAsync(user, dto.Password))
+                throw new UnauthorizedAccessException("Invalid credentials");
+
+            var jwt = await GenerateJwtTokenAsync(user);
+            return BuildLoginResponse(jwt);
+        }
+
+        private async Task<string> CreateUserAndTokenAsync(RegisterRequestDto dto)
+        {
+            // Map incoming DTO to EF entity
+            var userEntity = dto.ToEntity();
+
+            var cr = await _userMgr.CreateAsync(userEntity, dto.Password);
+            if (!cr.Succeeded)
+                throw new InvalidOperationException(
+                    string.Join(';', cr.Errors.Select(e => e.Description)));
+
+            if (!await _roleMgr.RoleExistsAsync(dto.Role))
+                await _roleMgr.CreateAsync(new ApplicationRole { Name = dto.Role });
+
+            await _userMgr.AddToRoleAsync(userEntity, dto.Role);
+
+            return await GenerateJwtTokenAsync(userEntity);
         }
 
         private async Task<string> GenerateJwtTokenAsync(ApplicationUser user)
         {
-            var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(_config["Jwt:Key"]!)
-            );
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var keyBytes = Encoding.UTF8.GetBytes(_config["Jwt:Key"]!);
+            var creds = new SigningCredentials(
+                new SymmetricSecurityKey(keyBytes),
+                SecurityAlgorithms.HmacSha256);
 
             var claims = new List<Claim>
             {
@@ -94,16 +91,35 @@ namespace DonaldsonMotors.API.Services
             var roles = await _userMgr.GetRolesAsync(user);
             claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
 
-            var token = new JwtSecurityToken(
+            var jwt = new JwtSecurityToken(
                 issuer: _config["Jwt:Issuer"],
                 audience: _config["Jwt:Audience"],
                 claims: claims,
                 expires: DateTime.UtcNow.AddMinutes(
                     int.Parse(_config["Jwt:ExpiryMinutes"]!)),
-                signingCredentials: creds
-            );
+                signingCredentials: creds);
 
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            return new JwtSecurityTokenHandler().WriteToken(jwt);
+        }
+
+        private RegisterResponseDto BuildRegisterResponse(string token)
+        {
+            var expiresIn = int.Parse(_config["Jwt:ExpiryMinutes"]!);
+            return new RegisterResponseDto
+            {
+                Token = token,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(expiresIn)
+            };
+        }
+
+        private LoginResponseDto BuildLoginResponse(string token)
+        {
+            var expiresIn = int.Parse(_config["Jwt:ExpiryMinutes"]!);
+            return new LoginResponseDto
+            {
+                Token = token,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(expiresIn)
+            };
         }
     }
 }

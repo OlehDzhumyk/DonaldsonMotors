@@ -1,15 +1,14 @@
-﻿using DonaldsonMotors.API.Models;
-
+﻿using DonaldsonMotors.API.Data.Entities;
 
 namespace DonaldsonMotors.API.Interfaces.Repositories
 {
     public interface IPaymentRepository
     {
-        Task<Payment?> GetByIdAsync(int id);
-        Task<IEnumerable<Payment>> ListAsync();
-        Task AddAsync(Payment payment);
-        void Update(Payment payment);
-        void Delete(Payment payment);
+        Task<PaymentEntity?> GetByIdAsync(int id);
+        Task<IEnumerable<PaymentEntity>> ListAsync();
+        Task AddAsync(PaymentEntity paymentEntity);
+        void Update(PaymentEntity paymentEntity);
+        void Delete(PaymentEntity paymentEntity);
         Task SaveChangesAsync();
     }
 }

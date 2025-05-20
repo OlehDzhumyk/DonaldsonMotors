@@ -1,16 +1,14 @@
-﻿using DonaldsonMotors.API.Models;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+﻿using DonaldsonMotors.API.Data.Entities;
 
 namespace DonaldsonMotors.API.Interfaces.Repositories
 {
     public interface IJobRepository
     {
-        Task<Job?> GetByIdAsync(int id);
-        Task<IEnumerable<Job>> ListAsync();
-        Task AddAsync(Job job);
-        void Update(Job job);
-        void Delete(Job job);
+        Task<JobEntity?> GetByIdAsync(int id);
+        Task<IEnumerable<JobEntity>> ListAsync();
+        Task AddAsync(JobEntity jobEntity);
+        void Update(JobEntity jobEntity);
+        void Delete(JobEntity jobEntity);
         Task SaveChangesAsync();
     }
 }

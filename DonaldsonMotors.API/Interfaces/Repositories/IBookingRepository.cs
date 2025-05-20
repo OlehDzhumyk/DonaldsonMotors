@@ -1,4 +1,4 @@
-﻿using DonaldsonMotors.API.Models;
+﻿using DonaldsonMotors.API.Domain.Models;
 
 namespace DonaldsonMotors.API.Interfaces.Repositories
 {
@@ -9,6 +9,7 @@ namespace DonaldsonMotors.API.Interfaces.Repositories
         Task AddAsync(Booking booking);
         void Update(Booking booking);
         void Delete(Booking booking);
-        Task SaveChangesAsync();
+        Task<int> SaveChangesAsync();
+        Task<IEnumerable<Booking>> ListByCustomerAsync(int customerId);
     }
 }

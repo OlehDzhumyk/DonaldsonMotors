@@ -1,34 +1,45 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿// Controllers/AuthController.cs
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using DonaldsonMotors.API.DTOs.Auth;
 using DonaldsonMotors.API.Interfaces.Services;
-using DonaldsonMotors.API.Models;
+using DonaldsonMotors.API.Domain.Models;
 
 namespace DonaldsonMotors.API.Controllers
 {
     [ApiController]
-    [ApiVersion("1.0")]
-    [Route("api/v{version:apiVersion}/[controller]")]
+    [Route("api/v1/[controller]")]
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _auth;
 
         public AuthController(IAuthService auth) => _auth = auth;
 
-        // POST api/v1/auth/register
         [HttpPost("register")]
-        public async Task<IActionResult> Register(RegisterModel model)
+        [AllowAnonymous]
+        public async Task<ActionResult<RegisterResponseDto>> RegisterCustomer(
+            [FromBody] RegisterRequestDto dto)
         {
-            var res = await _auth.RegisterAsync(model);
-            if (!res.Succeeded) return BadRequest(res.Errors);
-            return Ok(new { token = res.Token });
+            var resp = await _auth.RegisterCustomerAsync(dto);
+            return Ok(resp);
         }
 
-        // POST api/v1/auth/login
-        [HttpPost("login")]
-        public async Task<IActionResult> Login(LoginModel model)
+        [HttpPost("register/staff")]
+        [Authorize(Roles = Roles.Manager)]
+        public async Task<ActionResult<RegisterResponseDto>> RegisterStaff(
+            [FromBody] RegisterRequestDto dto)
         {
-            var res = await _auth.LoginAsync(model);
-            if (!res.Succeeded) return Unauthorized(res.Errors);
-            return Ok(new { token = res.Token });
+            var resp = await _auth.RegisterStaffAsync(dto);
+            return Ok(resp);
+        }
+
+        [HttpPost("login")]
+        [AllowAnonymous]
+        public async Task<ActionResult<LoginResponseDto>> Login(
+            [FromBody] LoginRequestDto dto)
+        {
+            var resp = await _auth.LoginAsync(dto);
+            return Ok(resp);
         }
     }
 }

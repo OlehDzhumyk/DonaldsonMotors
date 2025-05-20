@@ -1,7 +1,7 @@
 ﻿using DonaldsonMotors.API.Data;
-using DonaldsonMotors.API.Interfaces.Repositories;
-using DonaldsonMotors.API.Models;
+using DonaldsonMotors.API.Data.Entities;
 using Microsoft.EntityFrameworkCore;
+using DonaldsonMotors.API.Interfaces.Repositories;
 
 namespace DonaldsonMotors.API.Repositories
 {
@@ -10,24 +10,24 @@ namespace DonaldsonMotors.API.Repositories
         private readonly AppDbContext _ctx;
         public SupplierRepository(AppDbContext ctx) => _ctx = ctx;
 
-        public async Task<Supplier?> GetByIdAsync(int id) =>
+        public async Task<SupplierEntity?> GetByIdAsync(int id) =>
             await _ctx.Suppliers
-                      .Include(s => s.Items)
-                      .FirstOrDefaultAsync(s => s.Id == id);
+                .Include(s => s.Items)
+                .FirstOrDefaultAsync(s => s.Id == id);
 
-        public async Task<IEnumerable<Supplier>> ListAsync() =>
+        public async Task<IEnumerable<SupplierEntity>> ListAsync() =>
             await _ctx.Suppliers.ToListAsync();
 
-        public async Task AddAsync(Supplier supplier) =>
-            await _ctx.Suppliers.AddAsync(supplier);
+        public async Task AddAsync(SupplierEntity supplierEntity) =>
+            await _ctx.Suppliers.AddAsync(supplierEntity);
 
-        public void Update(Supplier supplier) =>
-            _ctx.Suppliers.Update(supplier);
+        public void Update(SupplierEntity supplierEntity) =>
+            _ctx.Suppliers.Update(supplierEntity);
 
-        public void Delete(Supplier supplier) =>
-            _ctx.Suppliers.Remove(supplier);
+        public void Delete(SupplierEntity supplierEntity) =>
+            _ctx.Suppliers.Remove(supplierEntity);
 
-        public Task SaveChangesAsync() =>
-            _ctx.SaveChangesAsync();
+        public async Task SaveChangesAsync() =>
+            await _ctx.SaveChangesAsync();
     }
 }

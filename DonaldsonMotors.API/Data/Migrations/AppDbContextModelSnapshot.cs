@@ -8,7 +8,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace DonaldsonMotors.API.Migrations
+namespace DonaldsonMotors.API.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     partial class AppDbContextModelSnapshot : ModelSnapshot
@@ -17,12 +17,12 @@ namespace DonaldsonMotors.API.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.4")
+                .HasAnnotation("ProductVersion", "8.0.16")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.ApplicationRole", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.ApplicationRole", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -51,7 +51,7 @@ namespace DonaldsonMotors.API.Migrations
                     b.ToTable("AspNetRoles", (string)null);
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.ApplicationUser", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.ApplicationUser", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -61,6 +61,10 @@ namespace DonaldsonMotors.API.Migrations
 
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("integer");
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
@@ -106,6 +110,9 @@ namespace DonaldsonMotors.API.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("text");
 
+                    b.Property<string>("TelephoneNumber")
+                        .HasColumnType("text");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("boolean");
 
@@ -134,7 +141,7 @@ namespace DonaldsonMotors.API.Migrations
                     b.UseTphMappingStrategy();
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Booking", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.BookingEntity", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -144,6 +151,9 @@ namespace DonaldsonMotors.API.Migrations
 
                     b.Property<DateTime>("BookingDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("CustomerEntityId")
+                        .HasColumnType("integer");
 
                     b.Property<int>("CustomerId")
                         .HasColumnType("integer");
@@ -158,6 +168,8 @@ namespace DonaldsonMotors.API.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CustomerEntityId");
+
                     b.HasIndex("CustomerId");
 
                     b.HasIndex("VehicleRegistration");
@@ -165,7 +177,7 @@ namespace DonaldsonMotors.API.Migrations
                     b.ToTable("Bookings");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Invoice", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.InvoiceEntity", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -176,26 +188,21 @@ namespace DonaldsonMotors.API.Migrations
                     b.Property<int>("BookingId")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("CustomerId")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime>("DateIssued")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal>("TotalCost")
-                        .HasColumnType("numeric");
+                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("BookingId")
                         .IsUnique();
 
-                    b.HasIndex("CustomerId");
-
                     b.ToTable("Invoices");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Item", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.ItemEntity", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -203,7 +210,7 @@ namespace DonaldsonMotors.API.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("CurrentStockLevel")
+                    b.Property<int>("CurrentStock")
                         .HasColumnType("integer");
 
                     b.Property<string>("Name")
@@ -211,7 +218,7 @@ namespace DonaldsonMotors.API.Migrations
                         .HasColumnType("text");
 
                     b.Property<decimal>("Price")
-                        .HasColumnType("numeric");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("SupplierId")
                         .HasColumnType("integer");
@@ -223,7 +230,7 @@ namespace DonaldsonMotors.API.Migrations
                     b.ToTable("Items");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Job", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.JobEntity", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -262,25 +269,25 @@ namespace DonaldsonMotors.API.Migrations
                     b.ToTable("Jobs");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.JobItem", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.JobItemEntity", b =>
                 {
-                    b.Property<int>("JobId")
+                    b.Property<int>("JobEntityId")
                         .HasColumnType("integer");
 
-                    b.Property<int>("ItemId")
+                    b.Property<int>("ItemEntityId")
                         .HasColumnType("integer");
 
                     b.Property<int>("QuantityUsed")
                         .HasColumnType("integer");
 
-                    b.HasKey("JobId", "ItemId");
+                    b.HasKey("JobEntityId", "ItemEntityId");
 
-                    b.HasIndex("ItemId");
+                    b.HasIndex("ItemEntityId");
 
                     b.ToTable("JobItems");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Payment", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.PaymentEntity", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -289,7 +296,7 @@ namespace DonaldsonMotors.API.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("Amount")
-                        .HasColumnType("numeric");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("DatePaid")
                         .HasColumnType("timestamp with time zone");
@@ -308,7 +315,31 @@ namespace DonaldsonMotors.API.Migrations
                     b.ToTable("Payments");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Supplier", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.ServiceType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ServiceTypes");
+                });
+
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.SupplierEntity", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -317,12 +348,14 @@ namespace DonaldsonMotors.API.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("AddressLine1")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("AddressLine2")
                         .HasColumnType("text");
 
-                    b.Property<string>("Email")
+                    b.Property<string>("EmailContact")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Name")
@@ -334,6 +367,7 @@ namespace DonaldsonMotors.API.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Telephone")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -341,10 +375,13 @@ namespace DonaldsonMotors.API.Migrations
                     b.ToTable("Suppliers");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Vehicle", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.VehicleEntity", b =>
                 {
                     b.Property<string>("RegistrationNumber")
                         .HasColumnType("text");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Make")
                         .IsRequired()
@@ -357,15 +394,12 @@ namespace DonaldsonMotors.API.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("OwnerId")
-                        .HasColumnType("integer");
-
                     b.Property<int>("Year")
                         .HasColumnType("integer");
 
                     b.HasKey("RegistrationNumber");
 
-                    b.HasIndex("OwnerId");
+                    b.HasIndex("CustomerId");
 
                     b.ToTable("Vehicles");
                 });
@@ -473,87 +507,77 @@ namespace DonaldsonMotors.API.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Customer", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.CustomerEntity", b =>
                 {
-                    b.HasBaseType("DonaldsonMotors.API.Models.ApplicationUser");
-
-                    b.Property<string>("Address")
-                        .HasColumnType("text");
-
-                    b.Property<string>("TelephoneNumber")
-                        .HasColumnType("text");
+                    b.HasBaseType("DonaldsonMotors.API.Data.Entities.ApplicationUser");
 
                     b.HasDiscriminator().HasValue("Customer");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Employee", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.EmployeeEntity", b =>
                 {
-                    b.HasBaseType("DonaldsonMotors.API.Models.ApplicationUser");
-
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.HasBaseType("DonaldsonMotors.API.Data.Entities.ApplicationUser");
 
                     b.HasDiscriminator().HasValue("Employee");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Booking", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.BookingEntity", b =>
                 {
-                    b.HasOne("DonaldsonMotors.API.Models.Customer", "User")
+                    b.HasOne("DonaldsonMotors.API.Data.Entities.CustomerEntity", null)
                         .WithMany("Bookings")
+                        .HasForeignKey("CustomerEntityId");
+
+                    b.HasOne("DonaldsonMotors.API.Data.Entities.CustomerEntity", "Customer")
+                        .WithMany()
                         .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("DonaldsonMotors.API.Models.Vehicle", "Vehicle")
-                        .WithMany("Bookings")
+                    b.HasOne("DonaldsonMotors.API.Data.Entities.VehicleEntity", "Vehicle")
+                        .WithMany()
                         .HasForeignKey("VehicleRegistration")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("User");
+                    b.Navigation("Customer");
 
                     b.Navigation("Vehicle");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Invoice", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.InvoiceEntity", b =>
                 {
-                    b.HasOne("DonaldsonMotors.API.Models.Booking", "Booking")
+                    b.HasOne("DonaldsonMotors.API.Data.Entities.BookingEntity", "Booking")
                         .WithOne("Invoice")
-                        .HasForeignKey("DonaldsonMotors.API.Models.Invoice", "BookingId")
+                        .HasForeignKey("DonaldsonMotors.API.Data.Entities.InvoiceEntity", "BookingId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("DonaldsonMotors.API.Models.Customer", null)
-                        .WithMany("Invoices")
-                        .HasForeignKey("CustomerId");
 
                     b.Navigation("Booking");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Item", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.ItemEntity", b =>
                 {
-                    b.HasOne("DonaldsonMotors.API.Models.Supplier", "Supplier")
+                    b.HasOne("DonaldsonMotors.API.Data.Entities.SupplierEntity", "Supplier")
                         .WithMany("Items")
                         .HasForeignKey("SupplierId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Supplier");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Job", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.JobEntity", b =>
                 {
-                    b.HasOne("DonaldsonMotors.API.Models.Booking", "Booking")
+                    b.HasOne("DonaldsonMotors.API.Data.Entities.BookingEntity", "Booking")
                         .WithMany("Jobs")
                         .HasForeignKey("BookingId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("DonaldsonMotors.API.Models.Employee", "Technician")
+                    b.HasOne("DonaldsonMotors.API.Data.Entities.EmployeeEntity", "Technician")
                         .WithMany("JobsCompleted")
                         .HasForeignKey("TechnicianId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Booking");
@@ -561,17 +585,17 @@ namespace DonaldsonMotors.API.Migrations
                     b.Navigation("Technician");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.JobItem", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.JobItemEntity", b =>
                 {
-                    b.HasOne("DonaldsonMotors.API.Models.Item", "Item")
+                    b.HasOne("DonaldsonMotors.API.Data.Entities.ItemEntity", "Item")
                         .WithMany("JobItems")
-                        .HasForeignKey("ItemId")
+                        .HasForeignKey("ItemEntityId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("DonaldsonMotors.API.Models.Job", "Job")
-                        .WithMany("JobItems")
-                        .HasForeignKey("JobId")
+                    b.HasOne("DonaldsonMotors.API.Data.Entities.JobEntity", "Job")
+                        .WithMany("Items")
+                        .HasForeignKey("JobEntityId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -580,9 +604,9 @@ namespace DonaldsonMotors.API.Migrations
                     b.Navigation("Job");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Payment", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.PaymentEntity", b =>
                 {
-                    b.HasOne("DonaldsonMotors.API.Models.Invoice", "Invoice")
+                    b.HasOne("DonaldsonMotors.API.Data.Entities.InvoiceEntity", "Invoice")
                         .WithMany("Payments")
                         .HasForeignKey("InvoiceId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -591,20 +615,20 @@ namespace DonaldsonMotors.API.Migrations
                     b.Navigation("Invoice");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Vehicle", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.VehicleEntity", b =>
                 {
-                    b.HasOne("DonaldsonMotors.API.Models.Customer", "Owner")
+                    b.HasOne("DonaldsonMotors.API.Data.Entities.CustomerEntity", "Customer")
                         .WithMany("Vehicles")
-                        .HasForeignKey("OwnerId")
+                        .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Owner");
+                    b.Navigation("Customer");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
                 {
-                    b.HasOne("DonaldsonMotors.API.Models.ApplicationRole", null)
+                    b.HasOne("DonaldsonMotors.API.Data.Entities.ApplicationRole", null)
                         .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -613,7 +637,7 @@ namespace DonaldsonMotors.API.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<int>", b =>
                 {
-                    b.HasOne("DonaldsonMotors.API.Models.ApplicationUser", null)
+                    b.HasOne("DonaldsonMotors.API.Data.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -622,7 +646,7 @@ namespace DonaldsonMotors.API.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<int>", b =>
                 {
-                    b.HasOne("DonaldsonMotors.API.Models.ApplicationUser", null)
+                    b.HasOne("DonaldsonMotors.API.Data.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -631,13 +655,13 @@ namespace DonaldsonMotors.API.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<int>", b =>
                 {
-                    b.HasOne("DonaldsonMotors.API.Models.ApplicationRole", null)
+                    b.HasOne("DonaldsonMotors.API.Data.Entities.ApplicationRole", null)
                         .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("DonaldsonMotors.API.Models.ApplicationUser", null)
+                    b.HasOne("DonaldsonMotors.API.Data.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -646,55 +670,48 @@ namespace DonaldsonMotors.API.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<int>", b =>
                 {
-                    b.HasOne("DonaldsonMotors.API.Models.ApplicationUser", null)
+                    b.HasOne("DonaldsonMotors.API.Data.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Booking", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.BookingEntity", b =>
                 {
                     b.Navigation("Invoice");
 
                     b.Navigation("Jobs");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Invoice", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.InvoiceEntity", b =>
                 {
                     b.Navigation("Payments");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Item", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.ItemEntity", b =>
                 {
                     b.Navigation("JobItems");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Job", b =>
-                {
-                    b.Navigation("JobItems");
-                });
-
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Supplier", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.JobEntity", b =>
                 {
                     b.Navigation("Items");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Vehicle", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.SupplierEntity", b =>
                 {
-                    b.Navigation("Bookings");
+                    b.Navigation("Items");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Customer", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.CustomerEntity", b =>
                 {
                     b.Navigation("Bookings");
-
-                    b.Navigation("Invoices");
 
                     b.Navigation("Vehicles");
                 });
 
-            modelBuilder.Entity("DonaldsonMotors.API.Models.Employee", b =>
+            modelBuilder.Entity("DonaldsonMotors.API.Data.Entities.EmployeeEntity", b =>
                 {
                     b.Navigation("JobsCompleted");
                 });
