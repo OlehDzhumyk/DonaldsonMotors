@@ -1,14 +1,10 @@
-﻿// Services/AuthService.cs
-using DonaldsonMotors.API.Data.Entities;
+﻿using DonaldsonMotors.API.Data.Entities;
 using DonaldsonMotors.API.Domain.Models;
 using DonaldsonMotors.API.DTOs.Auth;
 using DonaldsonMotors.API.Interfaces.Services;
 using DonaldsonMotors.API.Mappers;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace DonaldsonMotors.API.Services
 {
@@ -16,109 +12,87 @@ namespace DonaldsonMotors.API.Services
     {
         private readonly UserManager<ApplicationUser> _userMgr;
         private readonly RoleManager<ApplicationRole> _roleMgr;
-        private readonly IConfiguration _config;
+        private readonly IJwtService _jwtService;
+        private readonly ILogger<AuthService> _logger;
 
         public AuthService(
             UserManager<ApplicationUser> userMgr,
             RoleManager<ApplicationRole> roleMgr,
-            IConfiguration config)
+            IJwtService jwtService,
+            ILogger<AuthService> logger)
         {
             _userMgr = userMgr;
             _roleMgr = roleMgr;
-            _config = config;
+            _jwtService = jwtService;
+            _logger = logger;
         }
 
         public async Task<RegisterResponseDto> RegisterCustomerAsync(RegisterRequestDto dto)
         {
+            _logger.LogDebug("📥 RegisterCustomerAsync for {Email}", dto.Email);
             dto.Role = Roles.Customer;
-            var token = await CreateUserAndTokenAsync(dto);
-            return BuildRegisterResponse(token);
+            return await CreateUserAndReturnToken(dto);
         }
 
         public async Task<RegisterResponseDto> RegisterStaffAsync(RegisterRequestDto dto)
         {
+            _logger.LogDebug("📥 RegisterStaffAsync for {Email} with Role {Role}", dto.Email, dto.Role);
+
             if (dto.Role == Roles.Customer)
                 throw new InvalidOperationException("Use RegisterCustomerAsync for Customers");
 
-            var token = await CreateUserAndTokenAsync(dto);
-            return BuildRegisterResponse(token);
+            return await CreateUserAndReturnToken(dto);
         }
 
         public async Task<LoginResponseDto> LoginAsync(LoginRequestDto dto)
         {
-            var user = await _userMgr.FindByEmailAsync(dto.Email)
+            _logger.LogDebug("📥 LoginAsync for {Email}", dto.Email);
+
+            var userEntity = await _userMgr.FindByEmailAsync(dto.Email)
                        ?? throw new UnauthorizedAccessException("Invalid credentials");
 
-            if (!await _userMgr.CheckPasswordAsync(user, dto.Password))
+            if (!await _userMgr.CheckPasswordAsync(userEntity, dto.Password))
                 throw new UnauthorizedAccessException("Invalid credentials");
 
-            var jwt = await GenerateJwtTokenAsync(user);
-            return BuildLoginResponse(jwt);
-        }
+            _logger.LogInformation("🔐 Password matched for {Email}", dto.Email);
 
-        private async Task<string> CreateUserAndTokenAsync(RegisterRequestDto dto)
-        {
-            // Map incoming DTO to EF entity
-            var userEntity = dto.ToEntity();
+            var (token, expiresAt) = await _jwtService.GenerateTokenAsync(userEntity);
 
-            var cr = await _userMgr.CreateAsync(userEntity, dto.Password);
-            if (!cr.Succeeded)
-                throw new InvalidOperationException(
-                    string.Join(';', cr.Errors.Select(e => e.Description)));
 
-            if (!await _roleMgr.RoleExistsAsync(dto.Role))
-                await _roleMgr.CreateAsync(new ApplicationRole { Name = dto.Role });
-
-            await _userMgr.AddToRoleAsync(userEntity, dto.Role);
-
-            return await GenerateJwtTokenAsync(userEntity);
-        }
-
-        private async Task<string> GenerateJwtTokenAsync(ApplicationUser user)
-        {
-            var keyBytes = Encoding.UTF8.GetBytes(_config["Jwt:Key"]!);
-            var creds = new SigningCredentials(
-                new SymmetricSecurityKey(keyBytes),
-                SecurityAlgorithms.HmacSha256);
-
-            var claims = new List<Claim>
-            {
-                new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new(ClaimTypes.Email, user.Email!),
-                new(ClaimTypes.Name, user.FullName!)
-            };
-
-            var roles = await _userMgr.GetRolesAsync(user);
-            claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
-
-            var jwt = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(
-                    int.Parse(_config["Jwt:ExpiryMinutes"]!)),
-                signingCredentials: creds);
-
-            return new JwtSecurityTokenHandler().WriteToken(jwt);
-        }
-
-        private RegisterResponseDto BuildRegisterResponse(string token)
-        {
-            var expiresIn = int.Parse(_config["Jwt:ExpiryMinutes"]!);
-            return new RegisterResponseDto
-            {
-                Token = token,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(expiresIn)
-            };
-        }
-
-        private LoginResponseDto BuildLoginResponse(string token)
-        {
-            var expiresIn = int.Parse(_config["Jwt:ExpiryMinutes"]!);
             return new LoginResponseDto
             {
                 Token = token,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(expiresIn)
+                ExpiresAt = expiresAt
+            };
+        }
+
+        private async Task<RegisterResponseDto> CreateUserAndReturnToken(RegisterRequestDto dto)
+        {
+            var userEntity = dto.ToEntity();
+            var cr = await _userMgr.CreateAsync(userEntity, dto.Password);
+
+            if (!cr.Succeeded)
+            {
+                var errors = string.Join("; ", cr.Errors.Select(e => e.Description));
+                _logger.LogWarning("⚠️ User creation failed: {Email}, Errors: {Errors}", dto.Email, errors);
+                throw new InvalidOperationException(errors);
+            }
+
+            if (!await _roleMgr.RoleExistsAsync(dto.Role))
+            {
+                await _roleMgr.CreateAsync(new ApplicationRole { Name = dto.Role });
+                _logger.LogInformation("🛠️ Created new role: {Role}", dto.Role);
+            }
+
+            await _userMgr.AddToRoleAsync(userEntity, dto.Role);
+            _logger.LogInformation("🧾 Assigned role {Role} to user {Email}", dto.Role, dto.Email);
+
+            var (token, expiresAt) = await _jwtService.GenerateTokenAsync(userEntity);
+
+            return new RegisterResponseDto
+            {
+                Token = token,
+                ExpiresAt = expiresAt
             };
         }
     }

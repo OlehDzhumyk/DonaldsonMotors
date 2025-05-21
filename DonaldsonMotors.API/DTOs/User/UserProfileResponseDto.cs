@@ -12,4 +12,5 @@ namespace DonaldsonMotors.API.DTOs.User
         public string? TelephoneNumber { get; set; }
         public IEnumerable<VehicleResponseDto> Vehicles { get; set; } = new List<VehicleResponseDto>();
     }
+
 }

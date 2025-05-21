@@ -1,6 +1,5 @@
 ﻿// Interfaces/Services/IAuthService.cs
 using DonaldsonMotors.API.DTOs.Auth;
-using System.Threading.Tasks;
 
 namespace DonaldsonMotors.API.Interfaces.Services
 {

@@ -1,0 +1,28 @@
+meta {
+  name: Make Booking
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseURL}}/auth/login
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:json {
+  {
+      "serviceTypeId": 1,
+      "vehicleRegistration": "AB12CDE",
+      "bookingDate": "2025-06-01T10:00:00",
+      "notes": "Standard service request."
+  }
+}

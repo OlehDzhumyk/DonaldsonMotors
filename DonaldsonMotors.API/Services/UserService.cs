@@ -1,76 +1,92 @@
-﻿using DonaldsonMotors.API.Data.Entities;
-using DonaldsonMotors.API.Domain.Models;
+﻿using DonaldsonMotors.API.Domain.Models;
 using DonaldsonMotors.API.Interfaces.Repositories;
 using DonaldsonMotors.API.Interfaces.Services;
 using DonaldsonMotors.API.Mappers;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
-namespace DonaldsonMotors.API.Services
+public class UserService : IUserService
 {
-    public class UserService : IUserService
+    private readonly ICustomerRepository _customers;
+    private readonly IVehicleRepository _vehicles;
+    private readonly ILogger<UserService> _logger;
+
+    public UserService(ICustomerRepository customers, IVehicleRepository vehicles, ILogger<UserService> logger)
     {
-        private readonly ICustomerRepository _customers;
-        private readonly IVehicleRepository _vehicles;
+        _customers = customers;
+        _vehicles = vehicles;
+        _logger = logger;
+    }
 
-        public UserService(
-            ICustomerRepository customers,
-            IVehicleRepository vehicles)
+    public async Task<Customer?> GetProfileAsync(int userId)
+    {
+        _logger.LogDebug("Getting customer profile for user ID {UserId}", userId);
+        var customer = await _customers.GetByIdAsync(userId);
+        return customer?.ToDomainModel();
+    }
+
+    public async Task<bool> UpdateProfileAsync(int userId, string fullName, string? address, string? telephone)
+    {
+        var customer = await _customers.GetByIdAsync(userId);
+        if (customer is null)
         {
-            _customers = customers;
-            _vehicles = vehicles;
+            _logger.LogWarning("UpdateProfileAsync: Customer not found for user ID {UserId}", userId);
+            return false;
         }
 
-        public async Task<Customer?> GetProfileAsync(int userId)
+        customer.UserName = fullName;
+        customer.Address = address;
+        customer.PhoneNumber = telephone;
+
+        _customers.Update(customer);
+        await _customers.SaveChangesAsync();
+
+        _logger.LogInformation("Profile updated for user ID {UserId}", userId);
+        return true;
+    }
+
+    public async Task<Vehicle> AddVehicleAsync(int userId, Vehicle vehicle)
+    {
+        _logger.LogInformation("Adding vehicle {Reg} for user {UserId}", vehicle.Registration, userId);
+        var entity = vehicle.ToEntity(userId);
+        await _vehicles.AddAsync(entity);
+        await _vehicles.SaveChangesAsync();
+        return entity.ToDomainModel();
+    }
+
+    public async Task<bool> UpdateVehicleAsync(int userId, string reg, Vehicle vehicle)
+    {
+        var existing = await _vehicles.GetByIdAsync(reg);
+        if (existing == null || existing.CustomerId != userId)
         {
-            var customerEntity = await _customers.GetByIdAsync(userId);
-            return customerEntity?.ToDomainModel();
+            _logger.LogWarning("UpdateVehicleAsync: Vehicle {Reg} not found or does not belong to user {UserId}", reg, userId);
+            return false;
         }
 
-        public async Task<bool> UpdateProfileAsync(int userId, string fullName, string? address, string? telephone)
+        existing.Make = vehicle.Make;
+        existing.Model = vehicle.Model;
+        existing.Year = vehicle.Year;
+        existing.Mileage = vehicle.Mileage;
+
+        _vehicles.Update(existing);
+        await _vehicles.SaveChangesAsync();
+
+        _logger.LogInformation("Vehicle {Reg} updated for user {UserId}", reg, userId);
+        return true;
+    }
+
+    public async Task<bool> DeleteVehicleAsync(int userId, string reg)
+    {
+        var existing = await _vehicles.GetByIdAsync(reg);
+        if (existing == null || existing.CustomerId != userId)
         {
-            var customerEntity = await _customers.GetByIdAsync(userId);
-            if (customerEntity == null) return false;
-
-            customerEntity.UserName = fullName; // Assuming UserName maps to FullName in Identity
-            customerEntity.Address = address;
-            customerEntity.PhoneNumber = telephone; // Assuming PhoneNumber maps to Telephone
-
-            _customers.Update(customerEntity);
-            await _customers.SaveChangesAsync();
-            return true;
+            _logger.LogWarning("DeleteVehicleAsync: Vehicle {Reg} not found or does not belong to user {UserId}", reg, userId);
+            return false;
         }
 
-        public async Task<Vehicle> AddVehicleAsync(int userId, Vehicle vehicle)
-        {
-            var vehicleEntity = vehicle.ToEntity(userId); // Use the ToEntity extension, providing the ownerId
-            await _vehicles.AddAsync(vehicleEntity);
-            await _vehicles.SaveChangesAsync();
-            return vehicleEntity.ToDomainModel(); // Convert the saved entity back to the domain model
-        }
+        _vehicles.Delete(existing);
+        await _vehicles.SaveChangesAsync();
 
-        public async Task<bool> UpdateVehicleAsync(int userId, string registration, Vehicle vehicle)
-        {
-            var existingEntity = await _vehicles.GetByIdAsync(registration);
-            if (existingEntity == null || existingEntity.CustomerId != userId) return false;
-
-            existingEntity.Make = vehicle.Make;
-            existingEntity.Model = vehicle.Model;
-            existingEntity.Year = vehicle.Year;
-            existingEntity.Mileage = vehicle.Mileage;
-
-            _vehicles.Update(existingEntity);
-            await _vehicles.SaveChangesAsync();
-            return true;
-        }
-
-        public async Task<bool> DeleteVehicleAsync(int userId, string registration)
-        {
-            var existingEntity = await _vehicles.GetByIdAsync(registration);
-            if (existingEntity == null || existingEntity.CustomerId != userId) return false;
-
-            _vehicles.Delete(existingEntity);
-            await _vehicles.SaveChangesAsync();
-            return true;
-        }
+        _logger.LogInformation("Vehicle {Reg} deleted for user {UserId}", reg, userId);
+        return true;
     }
 }

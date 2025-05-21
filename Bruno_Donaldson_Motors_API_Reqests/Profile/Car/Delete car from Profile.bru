@@ -1,0 +1,24 @@
+meta {
+  name: Delete car from Profile
+  type: http
+  seq: 2
+}
+
+delete {
+  url: {{baseURL}}Users/me/cars/{{testVehicleRegistration}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:json {
+  {
+      "registration": "TEST123A",
+      "make": "Ford",
+      "model": "Focus ST",
+      "year": 2021 
+  }
+}

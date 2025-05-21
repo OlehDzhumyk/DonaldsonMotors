@@ -1,0 +1,23 @@
+meta {
+  name: Update Profile
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseURL}}Users/me
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:json {
+  {
+      "fullName": "John D. Updated",
+      "address": "456 New Customer Road, City",
+      "telephoneNumber": "09876543210"
+  }
+}

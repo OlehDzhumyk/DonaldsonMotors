@@ -1,0 +1,24 @@
+meta {
+  name: Register staff
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseURL}}/auth/register/staff
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+      "fullName": "Manager Alex",
+      "email": "manager.alex@donaldsonmotors.com",
+      "password": "SecureManagerPass123!",
+      "role": "Manager" // Or Mechanic, StockController, AccountsClerk
+  }
+}

@@ -9,31 +9,33 @@ using DonaldsonMotors.API.Repositories;
 using DonaldsonMotors.API.Interfaces.Services;
 using DonaldsonMotors.API.Services;
 using DonaldsonMotors.API.Data.Entities;
-using DonaldsonMotors.API.Interfaces;
+using DonaldsonMotors.API.Logers;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
-#region — Configuration from env/appsettings —--------------------------------------------------
-// 1) Connection string
-var defaultConn = builder.Configuration.GetConnectionString("Default");
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
 
-// 2) JWT settings
+builder.Logging.AddFilter("Microsoft.AspNetCore.Authorization", LogLevel.Debug);
+builder.Logging.AddFilter("Microsoft.AspNetCore.Authentication", LogLevel.Debug);
+builder.Logging.AddFilter("Microsoft.AspNetCore.Identity", LogLevel.Debug);
+
+#region — Конфігурація JWT
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
-var jwtExpiryString = builder.Configuration["Jwt:ExpiryMinutes"] ?? "60";
-var jwtExpiryMin = int.Parse(jwtExpiryString);
+var jwtExpiryMin = int.Parse(builder.Configuration["Jwt:ExpiryMinutes"] ?? "60");
+var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
 #endregion
 
-#region — Service Registrations —---------------------------------------------------------------
-// Register controllers
+#region — Сервіси
 builder.Services.AddControllers();
-
-// 1. EF Core: PostgreSQL
 builder.Services.AddDbContext<AppDbContext>(opts =>
-    opts.UseNpgsql(defaultConn));
+    opts.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 
-// 2. ASP.NET Core Identity
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(opts =>
 {
     opts.User.RequireUniqueEmail = true;
@@ -43,38 +45,33 @@ builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(opts =>
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
-// 3. JWT Authentication
-var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
-builder.Services
-    .AddAuthentication(options =>
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    })
-    .AddJwtBearer(options =>
-    {
-        options.RequireHttpsMetadata = true;
-        options.SaveToken = true;
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
-            ValidateIssuer = !string.IsNullOrEmpty(jwtIssuer),
-            ValidIssuer = jwtIssuer,
-            ValidateAudience = !string.IsNullOrEmpty(jwtAudience),
-            ValidAudience = jwtAudience,
-            ClockSkew = TimeSpan.Zero
-        };
-    });
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = "https://localhost:5000", // твій домен
+        ValidAudience = "https://localhost:5000",
+        IssuerSigningKey = new SymmetricSecurityKey(keyBytes)
 
-// 4. Authorization
+    };
+});
+
 builder.Services.AddAuthorization();
 
-// 5. Swagger / OpenAPI
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// 6. Repository layer (DI)
+
 builder.Services.AddScoped<IBookingRepository, BookingRepository>();
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
@@ -85,23 +82,21 @@ builder.Services.AddScoped<IItemRepository, ItemRepository>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();
 
-// 7. Service layer (DI)
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IJwtService, JwtService>();
 
 
-// 8. Kestrel endpoints
-builder.WebHost.ConfigureKestrel(options =>
-{
-    options.ListenAnyIP(80);
-    //options.ListenAnyIP(8081, listen => listen.UseHttps());
-});
+// Kestrel
+builder.WebHost.ConfigureKestrel(options => options.ListenAnyIP(80));
 #endregion
 
 var app = builder.Build();
 
-#region — Apply EF Migrations at Startup —-------------------------------------------------------
+app.UseMiddleware<RequestLoggingMiddleware>();
+
+#region — Міграції
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -115,7 +110,24 @@ using (var scope = app.Services.CreateScope())
 }
 #endregion
 
-#region — HTTP Request Pipeline —----------------------------------------------------------------
+
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+        var ex = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+
+        logger.LogError(ex, "Unhandled exception occurred");
+
+        context.Response.StatusCode = 500;
+        await context.Response.WriteAsJsonAsync(new { error = "Something went wrong." });
+    });
+});
+
+
+
+#region — HTTP Pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -123,7 +135,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseAuthentication();   // must come before UseAuthorization
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

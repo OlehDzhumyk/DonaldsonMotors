@@ -1,24 +1,26 @@
 meta {
-  name: Register user
+  name: Log in Customer
   type: http
   seq: 2
 }
 
 post {
-  url: {{baseURL}}/auth/register
+  url: {{baseURL}}/auth/login
   body: json
-  auth: inherit
+  auth: bearer
 }
 
 headers {
   Content-Type: application/json
 }
 
+auth:bearer {
+  token: {{jwt_token}}
+}
+
 body:json {
   {
-    "fullName": "Joan Customer",
     "email": "joan@example.com",
-    "password": "P@ssw0rd!",
-    "role": "Customer"
+    "password": "P@ssw0rd!"
   }
 }

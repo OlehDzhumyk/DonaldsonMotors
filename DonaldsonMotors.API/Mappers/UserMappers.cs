@@ -1,5 +1,6 @@
 ﻿using DonaldsonMotors.API.Data.Entities;
 using DonaldsonMotors.API.Domain.Models;
+using DonaldsonMotors.API.DTOs.User;
 
 namespace DonaldsonMotors.API.Mappers
 {
@@ -68,6 +69,22 @@ namespace DonaldsonMotors.API.Mappers
                 Bookings = customer.Bookings?.Select(b => b.ToEntity()).ToList() ?? new List<BookingEntity>()
             };
         }
+
+
+        public static UserProfileResponseDto ToResponseDto(this Customer user, IEnumerable<Vehicle> vehicles)
+        {
+            return new UserProfileResponseDto
+            {
+                Id = user.Id,
+                FullName = user.FullName,
+                Email = user.Email,
+                Address = user.Address,
+                TelephoneNumber = user.TelephoneNumber,
+                Vehicles = vehicles.Select(v => v.ToResponseDto())
+            };
+        }
+
+
 
     }
 
