@@ -1,58 +1,33 @@
-﻿// Repositories/EmployeeRepository.cs
-using DonaldsonMotors.API.Data;
+﻿using DonaldsonMotors.API.Data;
 using DonaldsonMotors.API.Data.Entities;
-using DonaldsonMotors.API.Domain.Models;
-using DonaldsonMotors.API.Interfaces.Repositories;
-using DonaldsonMotors.API.Mappers;
+using DonaldsonMotors.API.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace DonaldsonMotors.API.Repositories
 {
-    public class EmployeeRepository : IEmployeeRepository
+    public class EmployeeRepository : GenericRepository<Employee>, IEmployeeRepository
     {
-        private readonly AppDbContext _ctx;
+        public EmployeeRepository(AppDbContext context) : base(context) { }
 
-        public EmployeeRepository(AppDbContext ctx)
+        /// <summary>
+        /// Checks if a mechanic has any overlapping bookings for a given time slot.
+        /// </summary>
+        /// <returns>True if the mechanic is available, false otherwise.</returns>
+        public async Task<bool> IsMechanicAvailableAsync(int mechanicId, DateTime slotStart, double durationHours)
         {
-            _ctx = ctx;
-        }
+            var slotEnd = slotStart.AddHours(durationHours);
 
-        public async Task<Employee?> GetByIdAsync(int id)
-        {
-            var entity = await _ctx.Set<EmployeeEntity>()
-                                   .AsNoTracking()
-                                   .FirstOrDefaultAsync(e => e.Id == id);
-            return entity?.ToDomainModel();
-        }
+            // A conflict exists if the mechanic has a booking where:
+            // The existing booking starts before our new slot ends, AND
+            // The existing booking ends after our new slot starts.
+            var hasConflict = await _context.Bookings
+                .AnyAsync(booking =>
+                    booking.MechanicId == mechanicId &&
+                    booking.SlotStart < slotEnd && // Existing starts before new ends
+                    booking.SlotStart.AddHours(2) > slotStart); // Existing ends after new starts (assuming 2h duration for all bookings)
 
-        public async Task<IEnumerable<Employee>> ListAsync()
-        {
-            var entities = await _ctx.Set<EmployeeEntity>()
-                                     .AsNoTracking()
-                                     .ToListAsync();
-            return entities.Select(e => e.ToDomainModel());
+            // The mechanic is available if there is NO conflict.
+            return !hasConflict;
         }
-
-        public async Task AddAsync(Employee employee)
-        {
-            var entity = employee.ToEntity();
-            await _ctx.Set<EmployeeEntity>().AddAsync(entity);
-            // note: identity user creation often goes through UserManager, not direct EF
-        }
-
-        public void Update(Employee employee)
-        {
-            var entity = employee.ToEntity();
-            _ctx.Set<EmployeeEntity>().Update(entity);
-        }
-
-        public void Delete(Employee employee)
-        {
-            var entity = employee.ToEntity();
-            _ctx.Set<EmployeeEntity>().Remove(entity);
-        }
-
-        public Task SaveChangesAsync()
-            => _ctx.SaveChangesAsync();
     }
 }

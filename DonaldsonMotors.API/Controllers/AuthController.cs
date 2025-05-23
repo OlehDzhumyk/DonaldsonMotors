@@ -1,83 +1,105 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using DonaldsonMotors.API.DTOs.Auth;
-using DonaldsonMotors.API.Interfaces.Services;
-using DonaldsonMotors.API.Domain.Models;
+using DonaldsonMotors.API.Interfaces;
+using DonaldsonMotors.API.Data.Entities;
 
 namespace DonaldsonMotors.API.Controllers
 {
     [ApiController]
-    [Route("api/v1/[controller]")]
+    [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly IAuthService _auth;
+        private readonly IAuthService _authService;
         private readonly ILogger<AuthController> _logger;
 
-        public AuthController(IAuthService auth, ILogger<AuthController> logger)
+        public AuthController(IAuthService authService, ILogger<AuthController> logger)
         {
-            _auth = auth;
+            _authService = authService;
             _logger = logger;
         }
 
+        /// <summary>
+        /// Registers a new customer. This endpoint is publicly accessible.
+        /// </summary>
         [HttpPost("register")]
         [AllowAnonymous]
-        public async Task<ActionResult<RegisterResponseDto>> RegisterCustomer([FromBody] RegisterRequestDto dto)
+        [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> RegisterCustomer([FromBody] RegisterRequestDto dto)
         {
-            _logger.LogInformation("🔵 Registering new customer: {Email}", dto.Email);
+            // Ensure the role is set to Customer for this endpoint
+            dto.Role = Roles.Customer;
 
+            _logger.LogInformation("Attempting to register new customer: {Email}", dto.Email);
             try
             {
-                var resp = await _auth.RegisterCustomerAsync(dto);
-                _logger.LogInformation("✅ Customer registered: {Email}", dto.Email);
-                return Ok(resp);
+                var response = await _authService.RegisterAsync(dto);
+                _logger.LogInformation("Customer registered successfully: {Email}", dto.Email);
+                return Ok(response);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex) // Catch specific exception for existing user
             {
-                _logger.LogError(ex, "❌ Failed to register customer: {Email}", dto.Email);
-                return BadRequest(ex.Message);
+                _logger.LogWarning("Registration failed for {Email}: {Error}", dto.Email, ex.Message);
+                return Conflict(ex.Message); // Return 409 Conflict
+            }
+            catch (ArgumentException ex) // Catch validation errors from the service
+            {
+                _logger.LogWarning("Registration failed due to invalid arguments for {Email}: {Error}", dto.Email, ex.Message);
+                return BadRequest(ex.Message); // Return 400 Bad Request
             }
         }
 
+        /// <summary>
+        /// Registers a new staff member. Accessible only by Managers.
+        /// </summary>
         [HttpPost("register/staff")]
         [Authorize(Roles = Roles.Manager)]
-        public async Task<ActionResult<RegisterResponseDto>> RegisterStaff([FromBody] RegisterRequestDto dto)
+        [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> RegisterStaff([FromBody] RegisterRequestDto dto)
         {
-            _logger.LogInformation("🔵 Registering new staff: {Email}, Role: {Role}", dto.Email, dto.Role);
-
+            _logger.LogInformation("Manager attempting to register new staff: {Email}, Role: {Role}", dto.Email, dto.Role);
             try
             {
-                var resp = await _auth.RegisterStaffAsync(dto);
-                _logger.LogInformation("✅ Staff registered: {Email}, Role: {Role}", dto.Email, dto.Role);
-                return Ok(resp);
+                var response = await _authService.RegisterAsync(dto);
+                _logger.LogInformation("Staff registered successfully: {Email}", dto.Email);
+                return Ok(response);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger.LogError(ex, "❌ Failed to register staff: {Email}", dto.Email);
+                _logger.LogWarning("Staff registration failed for {Email}: {Error}", dto.Email, ex.Message);
+                return Conflict(ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning("Staff registration failed due to invalid arguments for {Email}: {Error}", dto.Email, ex.Message);
                 return BadRequest(ex.Message);
             }
         }
 
+        /// <summary>
+        /// Authenticates a user and returns a JWT token.
+        /// </summary>
         [HttpPost("login")]
         [AllowAnonymous]
-        public async Task<ActionResult<LoginResponseDto>> Login([FromBody] LoginRequestDto dto)
+        [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> Login([FromBody] LoginRequestDto dto)
         {
-            _logger.LogInformation("🔵 Login attempt for: {Email}", dto.Email);
-
+            _logger.LogInformation("Login attempt for user: {Email}", dto.Email);
             try
             {
-                var resp = await _auth.LoginAsync(dto);
-                _logger.LogInformation("✅ Login success: {Email}", dto.Email);
-                return Ok(resp);
+                var response = await _authService.LoginAsync(dto);
+                _logger.LogInformation("User {Email} logged in successfully.", dto.Email);
+                return Ok(response);
             }
-            catch (UnauthorizedAccessException uex)
+            catch (UnauthorizedAccessException ex)
             {
-                _logger.LogWarning("⚠️ Invalid login attempt: {Email}", dto.Email);
-                return Unauthorized(uex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "❌ Unexpected error during login: {Email}", dto.Email);
-                return StatusCode(500, "An unexpected error occurred.");
+                _logger.LogWarning("Failed login attempt for {Email}: {Error}", dto.Email, ex.Message);
+                return Unauthorized(ex.Message); // Return 401 Unauthorized
             }
         }
     }

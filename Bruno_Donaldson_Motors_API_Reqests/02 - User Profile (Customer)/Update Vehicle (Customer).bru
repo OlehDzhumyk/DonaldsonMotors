@@ -1,0 +1,29 @@
+meta {
+  name: Update Vehicle
+  type: http
+  seq: 1
+}
+
+put {
+  url: {{baseUrl}}/api/Users/me/cars/{{testVehicleReg}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}
+
+body:json {
+  {
+    "registrationNumber": "{{testVehicleReg}}", // Registration number usually doesn't change in an update DTO
+    "make": "BrunoMake Updated",
+    "model": "TestModel Pro",
+    "year": 2023,
+    "mileage": 15000
+  }
+}
+
+assert {
+  res.status: eq 204
+}

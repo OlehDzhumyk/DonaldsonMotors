@@ -1,10 +1,14 @@
-﻿namespace DonaldsonMotors.API.DTOs.Booking
+﻿// DTOs/Booking/CreateBookingRequestDto.cs
+using System.ComponentModel.DataAnnotations;
+
+public class CreateBookingRequestDto
 {
-    public class CreateBookingRequestDto
-    {
-        public int ServiceTypeId { get; set; }
-        public string VehicleRegistration { get; set; } = null!;
-        public DateTime BookingDate { get; set; }
-        public string? Notes { get; set; }
-    }
+    [Required]
+    public string VehicleRegistrationNumber { get; set; } = null!;
+
+    [Required]
+    public int ServiceTypeId { get; set; }
+
+    [Required]
+    public DateTime SlotStart { get; set; }
 }

@@ -1,6 +1,8 @@
 ﻿using DonaldsonMotors.API.Data.Entities;
-using DonaldsonMotors.API.Interfaces.Services;
+using DonaldsonMotors.API.Interfaces;
+using DonaldsonMotors.API.Options;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -8,39 +10,46 @@ using System.Text;
 
 public class JwtService : IJwtService
 {
-    private readonly IConfiguration _config;
-    private readonly UserManager<ApplicationUser> _userMgr;
+    private readonly JwtOptions _jwtOptions;
+    private readonly UserManager<ApplicationUser> _userManager;
 
-    public JwtService(IConfiguration config, UserManager<ApplicationUser> userMgr)
+    public JwtService(IOptions<JwtOptions> jwtOptions, UserManager<ApplicationUser> userManager)
     {
-        _config = config;
-        _userMgr = userMgr;
+        // By using IOptions, the configuration is strongly-typed and validated at startup.
+        _jwtOptions = jwtOptions.Value;
+        _userManager = userManager;
     }
 
     public async Task<(string token, DateTime expiresAt)> GenerateTokenAsync(ApplicationUser user)
     {
-        var roles = await _userMgr.GetRolesAsync(user);
+        var roles = await _userManager.GetRolesAsync(user);
+
+        // Define the claims for the token.
+        // The most important ones are NameIdentifier (user's ID) and Role.
         var claims = new List<Claim>
         {
-            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new(ClaimTypes.Email, user.Email!),
-            new(ClaimTypes.Name, user.FullName!)
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Email, user.Email!),
+            new Claim(ClaimTypes.Name, user.FullName) // Can be used for display name
         };
 
-        claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
+        // Add a role claim for each role the user has.
+        claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.Key));
+        var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
-        var expiresAt = DateTime.UtcNow.AddMinutes(double.Parse(_config["Jwt:ExpiryMinutes"]!));
+        var expires = DateTime.UtcNow.AddMinutes(_jwtOptions.ExpiryMinutes);
 
-        var token = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"],
-            audience: _config["Jwt:Audience"],
+        var tokenDescriptor = new JwtSecurityToken(
+            issuer: _jwtOptions.Issuer,
+            audience: _jwtOptions.Audience,
             claims: claims,
-            expires: expiresAt,
-            signingCredentials: creds);
+            expires: expires,
+            signingCredentials: credentials);
 
-        return (new JwtSecurityTokenHandler().WriteToken(token), expiresAt);
+        var token = new JwtSecurityTokenHandler().WriteToken(tokenDescriptor);
+
+        return (token, expires);
     }
 }

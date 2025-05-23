@@ -1,0 +1,16 @@
+meta {
+  name: Get Availability (Public)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/schedule/availability?startDate=2025-11-10&endDate=2025-12-26
+  body: none
+  auth: inherit
+}
+
+params:query {
+  startDate: 2025-11-10
+  endDate: 2025-12-26
+}

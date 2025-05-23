@@ -1,32 +1,33 @@
-﻿using DonaldsonMotors.API.Data.Entities;
-using DonaldsonMotors.API.Data;
+﻿using DonaldsonMotors.API.Data;
+using DonaldsonMotors.API.Data.Entities;
+using DonaldsonMotors.API.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
-public class VehicleRepository : IVehicleRepository
+namespace DonaldsonMotors.API.Repositories
 {
-    private readonly AppDbContext _ctx;
-    public VehicleRepository(AppDbContext ctx) => _ctx = ctx;
+    /// <summary>
+    /// Handles Vehicle data access. It's separate because its primary key is a string.
+    /// </summary>
+    public class VehicleRepository : IVehicleRepository
+    {
+        private readonly AppDbContext _context;
+        public VehicleRepository(AppDbContext context) => _context = context;
 
-    public async Task<VehicleEntity?> GetByIdAsync(string registration) =>
-        await _ctx.Vehicles.FirstOrDefaultAsync(v => v.RegistrationNumber == registration);
+        public async Task<Vehicle?> GetByRegistrationAsync(string registration) =>
+            await _context.Vehicles.FirstOrDefaultAsync(v => v.RegistrationNumber == registration);
 
-    public async Task<IEnumerable<VehicleEntity>> ListAsync() =>
-        await _ctx.Vehicles.ToListAsync();
+        public async Task<IEnumerable<Vehicle>> GetByOwnerIdAsync(int ownerId) =>
+            await _context.Vehicles
+                .Where(v => v.OwnerId == ownerId)
+                .ToListAsync();
 
-    public async Task<IEnumerable<VehicleEntity>> GetByCustomerIdAsync(int customerId) => // ⬅️ NEW
-        await _ctx.Vehicles
-            .Where(v => v.CustomerId == customerId)
-            .ToListAsync();
+        public async Task AddAsync(Vehicle vehicle) =>
+            await _context.Vehicles.AddAsync(vehicle);
 
-    public async Task AddAsync(VehicleEntity vehicleEntity) =>
-        await _ctx.Vehicles.AddAsync(vehicleEntity);
+        public void Update(Vehicle vehicle) =>
+            _context.Vehicles.Update(vehicle);
 
-    public void Update(VehicleEntity vehicleEntity) =>
-        _ctx.Vehicles.Update(vehicleEntity);
-
-    public void Delete(VehicleEntity vehicleEntity) =>
-        _ctx.Vehicles.Remove(vehicleEntity);
-
-    public async Task SaveChangesAsync() =>
-        await _ctx.SaveChangesAsync();
+        public void Delete(Vehicle vehicle) =>
+            _context.Vehicles.Remove(vehicle);
+    }
 }

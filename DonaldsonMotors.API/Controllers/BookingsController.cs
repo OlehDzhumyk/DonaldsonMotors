@@ -1,101 +1,168 @@
-﻿// Controllers/BookingsController.cs
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
-using System.Security.Claims;
-using DonaldsonMotors.API.Interfaces.Services;
+﻿using DonaldsonMotors.API.Data.Entities;
 using DonaldsonMotors.API.DTOs.Booking;
-using DonaldsonMotors.API.Domain.Models;
-using DonaldsonMotors.API.Mappers;
+using DonaldsonMotors.API.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace DonaldsonMotors.API.Controllers
 {
     [ApiController]
-    [Route("api/v1/[controller]")]
-    [Authorize(AuthenticationSchemes = "Bearer", Roles = Roles.Customer + "," + Roles.Manager + "," + Roles.Mechanic)]
+    [Route("api/[controller]")]
+    [Authorize] // All endpoints in this controller require authentication by default
     public class BookingsController : ControllerBase
     {
-        private readonly IBookingService _bookingSvc;
+        private readonly IBookingService _bookingService;
+        private readonly ILogger<BookingsController> _logger;
 
-        public BookingsController(IBookingService bookingSvc)
+        public BookingsController(IBookingService bookingService, ILogger<BookingsController> logger)
         {
-            _bookingSvc = bookingSvc;
+            _bookingService = bookingService;
+            _logger = logger;
         }
 
-        private int GetUserId() =>
-            int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        // ====================================================================
+        // CUSTOMER ENDPOINTS
+        // ====================================================================
 
+        /// <summary>
+        /// Creates a new booking. Accessible only by customers.
+        /// </summary>
         [HttpPost]
         [Authorize(Roles = Roles.Customer)]
-        public async Task<IActionResult> Create([FromBody] CreateBookingRequestDto dto)
+        [ProducesResponseType(typeof(BookingResponseDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> CreateBooking([FromBody] CreateBookingRequestDto dto)
         {
-            // Map up-front
-            var model = dto.ToDomainModel();
-            // assign the current customer
-            model.Customer = new Customer { Id = GetUserId() };
+            // Get the authenticated user's ID from the JWT token claims
+            var customerId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-            var created = await _bookingSvc.CreateAsync(model);
-            return CreatedAtAction(
-                nameof(GetById),
-                new { id = created.Id, version = "1.0" },
-                created.ToResponseDto()
-            );
+            try
+            {
+                var createdBooking = await _bookingService.CreateBookingAsync(customerId, dto);
+                // Returns a 201 Created status with the location of the new resource (optional but good practice)
+                return CreatedAtAction(nameof(GetMyBookings), null, createdBooking);
+            }
+            catch (Exception ex) when (ex is KeyNotFoundException || ex is ArgumentException)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                // This typically happens if the slot is taken (race condition)
+                return Conflict(ex.Message);
+            }
         }
 
-        [HttpGet]
-        public async Task<IActionResult> List()
+        /// <summary>
+        /// Gets all bookings for the currently authenticated customer.
+        /// </summary>
+        [HttpGet("my-bookings")]
+        [Authorize(Roles = Roles.Customer)]
+        [ProducesResponseType(typeof(IEnumerable<BookingResponseDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetMyBookings()
         {
-            IEnumerable<Booking> bookings;
-
-            if (User.IsInRole(Roles.Manager) || User.IsInRole(Roles.Mechanic))
-                bookings = await _bookingSvc.ListAllAsync();
-            else
-                bookings = await _bookingSvc.ListByCustomerAsync(GetUserId());
-
-            return Ok(bookings.Select(b => b.ToResponseDto()));
+            var customerId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var bookings = await _bookingService.GetMyBookingsAsync(customerId);
+            return Ok(bookings);
         }
 
-        [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetById(int id)
+        /// <summary>
+        /// Cancels a booking. Accessible only by the customer who owns the booking.
+        /// </summary>
+        [HttpPatch("{id}/cancel")]
+        [Authorize(Roles = Roles.Customer)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> CancelBooking(int id)
         {
-            var booking = await _bookingSvc.GetByIdAsync(id);
-            if (booking == null) return NotFound();
-
-            var userId = GetUserId();
-            if (!User.IsInRole(Roles.Manager) && booking.Customer.Id != userId)
-                return Forbid();
-
-            return Ok(booking.ToResponseDto());
+            var customerId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            try
+            {
+                await _bookingService.CancelBookingAsync(id, customerId);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return Forbid(ex.Message); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
         }
 
-        [HttpPut("{id:int}")]
-        [Authorize(Roles = Roles.Customer + "," + Roles.Manager)]
-        public async Task<IActionResult> Update(int id, [FromBody] UpdateBookingRequestDto dto)
+        // ====================================================================
+        // MANAGER ENDPOINTS
+        // ====================================================================
+
+        /// <summary>
+        /// Gets all active bookings for the manager's dashboard.
+        /// </summary>
+        [HttpGet("dashboard")]
+        [Authorize(Roles = Roles.Manager)]
+        [ProducesResponseType(typeof(IEnumerable<BookingResponseDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetDashboardBookings()
         {
-            var model = dto.ToDomainModel();
-            // optionally preserve the customer/vehicle — only editable fields are overwritten by your mapper
-            model.Customer = new Customer { Id = GetUserId() };
-
-            // enforce row‑level security in controller:
-            var existing = await _bookingSvc.GetByIdAsync(id);
-            if (existing == null) return NotFound();
-            if (!User.IsInRole(Roles.Manager) && existing.Customer.Id != GetUserId())
-                return Forbid();
-
-            var ok = await _bookingSvc.UpdateAsync(id, model);
-            return ok ? NoContent() : NotFound();
+            var bookings = await _bookingService.GetActiveBookingsForDashboardAsync();
+            return Ok(bookings);
         }
 
-        [HttpDelete("{id:int}")]
-        [Authorize(Roles = Roles.Customer + "," + Roles.Manager)]
-        public async Task<IActionResult> Cancel(int id)
+        /// <summary>
+        /// Assigns a mechanic to a pending booking.
+        /// </summary>
+        [HttpPut("assign-mechanic")]
+        [Authorize(Roles = Roles.Manager)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> AssignMechanic([FromBody] AssignMechanicRequestDto dto)
         {
-            var existing = await _bookingSvc.GetByIdAsync(id);
-            if (existing == null) return NotFound();
-            if (!User.IsInRole(Roles.Manager) && existing.Customer.Id != GetUserId())
-                return Forbid();
+            try
+            {
+                await _bookingService.AssignMechanicAsync(dto);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
 
-            var ok = await _bookingSvc.DeleteAsync(id);
-            return ok ? NoContent() : NotFound();
+        // ====================================================================
+        // MECHANIC ENDPOINTS
+        // ====================================================================
+
+        /// <summary>
+        /// Marks a job as started. Accessible by the assigned mechanic.
+        /// </summary>
+        [HttpPost("{id}/start-job")]
+        [Authorize(Roles = Roles.Mechanic)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<IActionResult> StartJob(int id)
+        {
+            var mechanicId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            try
+            {
+                await _bookingService.StartJobAsync(id, mechanicId);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return Forbid(ex.Message); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
+        /// <summary>
+        /// Marks a job as finished, providing work details and used parts.
+        /// </summary>
+        [HttpPost("{id}/finish-job")]
+        [Authorize(Roles = Roles.Mechanic)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<IActionResult> FinishJob(int id, [FromBody] FinishJobRequestDto dto)
+        {
+            var mechanicId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            try
+            {
+                await _bookingService.FinishJobAsync(id, mechanicId, dto);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return Forbid(ex.Message); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
         }
     }
 }

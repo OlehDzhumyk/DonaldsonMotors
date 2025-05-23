@@ -1,0 +1,30 @@
+meta {
+  name: Login Customer
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/Auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{customerEmail}}",
+    "password": "{{customerPassword}}"
+  }
+}
+
+script:post-response {
+  const responseBody = res.getBody();
+  if (responseBody && responseBody.token) {
+    bru.setEnvVar("customerToken", responseBody.token);
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.token: isDefined
+}

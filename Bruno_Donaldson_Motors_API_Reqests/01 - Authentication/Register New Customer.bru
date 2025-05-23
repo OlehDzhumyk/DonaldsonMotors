@@ -1,0 +1,34 @@
+meta {
+  name: Register New Customer
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/Auth/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "fullName": "Bruno Test Customer",
+    "email": "{{customerEmail}}",
+    "password": "{{customerPassword}}",
+    "role": "customer"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.role: eq "Customer"
+}
+
+script:post-response {
+  // Можна одразу зберегти токен, якщо реєстрація повертає його,
+  // або потім залогінитись окремо
+  const responseBody = res.getBody();
+  if (responseBody && responseBody.token) {
+    bru.setEnvVar("customerToken", responseBody.token);
+  }
+}

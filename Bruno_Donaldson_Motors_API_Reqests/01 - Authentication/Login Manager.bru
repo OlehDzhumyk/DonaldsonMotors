@@ -1,0 +1,32 @@
+meta {
+  name: Login Manager
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/Auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{adminEmail}}",
+    "password": "{{adminPassword}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.token: isDefined
+  res.body.role: eq "Manager"
+}
+
+script:post-response {
+  const responseBody = res.getBody();
+    
+  if (responseBody && responseBody.token && typeof responseBody.token === 'string') {
+      bru.setEnvVar("adminToken", responseBody.token);
+  }
+}

@@ -1,5 +1,4 @@
-﻿// Data/AppDbContext.cs
-using DonaldsonMotors.API.Data.Entities;
+﻿using DonaldsonMotors.API.Data.Entities;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,146 +6,70 @@ namespace DonaldsonMotors.API.Data
 {
     public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, int>
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options)
-            : base(options)
-        {
-        }
+        public AppDbContext(DbContextOptions<AppDbContext> opts) : base(opts) { }
 
-        // Only declare DbSet for aggregate roots / tables you need to query directly
-        public DbSet<VehicleEntity> Vehicles { get; set; }
-        public DbSet<BookingEntity> Bookings { get; set; }
-        public DbSet<JobEntity> Jobs { get; set; }
-        public DbSet<JobItemEntity> JobItems { get; set; }
-        public DbSet<ItemEntity> Items { get; set; }
-        public DbSet<SupplierEntity> Suppliers { get; set; }
-        public DbSet<InvoiceEntity> Invoices { get; set; }
-        public DbSet<PaymentEntity> Payments { get; set; }
-        public DbSet<ServiceType> ServiceTypes { get; set; }
+        // Standard Entities
+        public DbSet<Customer> Customers { get; set; } = null!;
+        public DbSet<Employee> Employees { get; set; } = null!;
+        public DbSet<Vehicle> Vehicles { get; set; } = null!;
+        public DbSet<Booking> Bookings { get; set; } = null!;
+        public DbSet<Job> Jobs { get; set; } = null!;
+        public DbSet<JobPart> JobParts { get; set; } = null!;
+        public DbSet<Part> Parts { get; set; } = null!;
+        public DbSet<Supplier> Suppliers { get; set; } = null!;
+        public DbSet<Invoice> Invoices { get; set; } = null!;
+        public DbSet<Payment> Payments { get; set; } = null!;
+        public DbSet<ServiceType> ServiceTypes { get; set; } = null!;
+        public DbSet<WorkingHours> WorkingHours { get; set; } = null!;
+        public DbSet<ScheduleSettings> ScheduleSettings { get; set; } = null!;
+        public DbSet<ScheduleException> ScheduleExceptions { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
 
-            // --- TPH for ApplicationUser ---
+            // --- NECESSARY CONFIGURATIONS ---
+
+            // Use Table-Per-Hierarchy (TPH) for user types
             builder.Entity<ApplicationUser>()
-                .ToTable("AspNetUsers")  // keep identity table name
                 .HasDiscriminator<string>("UserType")
-                .HasValue<CustomerEntity>("Customer")
-                .HasValue<EmployeeEntity>("Employee");
+                .HasValue<Customer>(Entities.Roles.Customer)
+                .HasValue<Employee>(Entities.Roles.Employee);
 
-            // --- Identity roles table name ---
-            builder.Entity<ApplicationRole>()
-                .ToTable("AspNetRoles");
+            // Set composite primary key for the JobPart linking table
+            builder.Entity<JobPart>()
+                .HasKey(jp => new { jp.JobId, jp.PartId }); // Corrected from ItemId to PartId
 
-            // --- VehicleEntity ---
-            builder.Entity<VehicleEntity>(entity =>
-            {
-                entity.HasKey(v => v.RegistrationNumber);
-                entity.Property(v => v.Make).IsRequired();
-                entity.Property(v => v.Model).IsRequired();
-                entity.HasOne(v => v.Customer)
-                      .WithMany(c => c.Vehicles)
-                      .HasForeignKey(v => v.CustomerId)
-                      .OnDelete(DeleteBehavior.Cascade);
-            });
+            // Set primary key for Vehicle, as it's not the default 'Id'
+            builder.Entity<Vehicle>()
+                .HasKey(v => v.RegistrationNumber);
 
-            // --- BookingEntity ---
-            builder.Entity<BookingEntity>(entity =>
-            {
-                entity.HasKey(b => b.Id);
-                entity.Property(b => b.VehicleRegistration).IsRequired();
-                entity.Property(b => b.Status).IsRequired();
+            // Set primary key for WorkingHours, as it's not the default 'Id'
+            builder.Entity<WorkingHours>()
+                .HasKey(wh => wh.DayOfWeek);
 
-                entity.HasOne(b => b.Customer)
-                      .WithMany()      // do not rely on DbSet<CustomerEntity>
-                      .HasForeignKey(b => b.CustomerId)
-                      .OnDelete(DeleteBehavior.Restrict);
+            // --- DATA TYPE AND PRECISION CONFIGURATIONS ---
 
-                entity.HasOne(b => b.Vehicle)
-                      .WithMany()
-                      .HasForeignKey(b => b.VehicleRegistration)
-                      .OnDelete(DeleteBehavior.Restrict);
+            // Set precision for all decimal properties related to cost/price
+            builder.Entity<Invoice>().Property(i => i.TotalCost).HasColumnType("decimal(18,2)");
+            builder.Entity<Job>().Property(j => j.LabourCost).HasColumnType("decimal(18,2)");
+            builder.Entity<Job>().Property(j => j.PartsCost).HasColumnType("decimal(18,2)");
+            builder.Entity<Part>().Property(p => p.Price).HasColumnType("decimal(18,2)");
+            builder.Entity<Payment>().Property(p => p.Amount).HasColumnType("decimal(18,2)");
+            builder.Entity<ServiceType>().Property(st => st.Price).HasColumnType("decimal(18,2)");
 
-                entity.HasOne(b => b.Invoice)
-                      .WithOne(i => i.Booking)
-                      .HasForeignKey<InvoiceEntity>(i => i.BookingId)
-                      .OnDelete(DeleteBehavior.Cascade);
-            });
+            // --- SEEDING INITIAL DATA ---
 
-            // --- InvoiceEntity ---
-            builder.Entity<InvoiceEntity>(entity =>
-            {
-                entity.HasKey(i => i.Id);
-                entity.Property(i => i.TotalCost).HasColumnType("decimal(18,2)");
-                entity.HasOne(i => i.Booking)
-                      .WithOne(b => b.Invoice)
-                      .HasForeignKey<InvoiceEntity>(i => i.BookingId);
-            });
+            // Seed the settings table with a default record so it's never empty.
+            builder.Entity<ScheduleSettings>().HasData(
+                new ScheduleSettings
+                {
+                    Id = 1, // Fixed ID
+                    LunchStartTime = new TimeOnly(13, 0),
+                    LunchEndTime = new TimeOnly(14, 0)
+                }
+            );
 
-            // --- PaymentEntity ---
-            builder.Entity<PaymentEntity>(entity =>
-            {
-                entity.HasKey(p => p.Id);
-                entity.Property(p => p.Amount).HasColumnType("decimal(18,2)");
-                entity.HasOne(p => p.Invoice)
-                      .WithMany(i => i.Payments)
-                      .HasForeignKey(p => p.InvoiceId)
-                      .OnDelete(DeleteBehavior.Cascade);
-            });
-
-            // --- JobEntity ---
-            builder.Entity<JobEntity>(entity =>
-            {
-                entity.HasKey(j => j.Id);
-                entity.Property(j => j.Description).IsRequired();
-                entity.HasOne(j => j.Booking)
-                      .WithMany(b => b.Jobs)
-                      .HasForeignKey(j => j.BookingId)
-                      .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(j => j.Technician)
-                      .WithMany(e => e.JobsCompleted)
-                      .HasForeignKey(j => j.TechnicianId)
-                      .OnDelete(DeleteBehavior.Restrict);
-            });
-
-            // --- JobItemEntity (many-to-many) ---
-            builder.Entity<JobItemEntity>(entity =>
-            {
-                entity.HasKey(ji => new { ji.JobEntityId, ji.ItemEntityId });
-                entity.HasOne(ji => ji.Job)
-                      .WithMany(j => j.Items)
-                      .HasForeignKey(ji => ji.JobEntityId);
-                entity.HasOne(ji => ji.Item)
-                      .WithMany(i => i.JobItems)
-                      .HasForeignKey(ji => ji.ItemEntityId);
-            });
-
-            // --- ItemEntity ---
-            builder.Entity<ItemEntity>(entity =>
-            {
-                entity.HasKey(i => i.Id);
-                entity.Property(i => i.Price).HasColumnType("decimal(18,2)");
-                entity.HasOne(i => i.Supplier)
-                      .WithMany(s => s.Items)
-                      .HasForeignKey(i => i.SupplierId)
-                      .OnDelete(DeleteBehavior.Restrict);
-            });
-
-            // --- SupplierEntity ---
-            builder.Entity<SupplierEntity>(entity =>
-            {
-                entity.HasKey(s => s.Id);
-                entity.Property(s => s.Name).IsRequired();
-            });
-
-            // --- ServiceType ---
-            builder.Entity<ServiceType>(entity =>
-            {
-                entity.HasKey(st => st.Id);
-                entity.Property(st => st.Name).IsRequired();
-                entity.Property(st => st.Price).HasColumnType("decimal(18,2)");
-            });
         }
     }
 }

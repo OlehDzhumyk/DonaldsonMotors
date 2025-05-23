@@ -1,72 +1,45 @@
 ﻿using DonaldsonMotors.API.Data;
-using DonaldsonMotors.API.Domain.Models;
-using DonaldsonMotors.API.Interfaces.Repositories;
-using Microsoft.EntityFrameworkCore;
 using DonaldsonMotors.API.Data.Entities;
-using DonaldsonMotors.API.Mappers;
+using DonaldsonMotors.API.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace DonaldsonMotors.API.Repositories
 {
-    public class BookingRepository : IBookingRepository
+    public class BookingRepository : GenericRepository<Booking>, IBookingRepository
     {
-        private readonly AppDbContext _ctx;
+        public BookingRepository(AppDbContext context) : base(context) { }
 
-        public BookingRepository(AppDbContext ctx) => _ctx = ctx;
-
-        public async Task<Booking?> GetByIdAsync(int id)
+        public async Task<Booking?> GetByIdWithDetailsAsync(int id)
         {
-            var entity = await _ctx.Bookings
-                .Include(b => b.Vehicle)
+            return await _context.Bookings
                 .Include(b => b.Customer)
-                .Include(b => b.Invoice)
-                .Include(b => b.Jobs)
+                .Include(b => b.Vehicle)
+                .Include(b => b.ServiceType)
+                .Include(b => b.Jobs)!
+                    .ThenInclude(j => j.JobParts)!
+                    .ThenInclude(jp => jp.Part)
                 .FirstOrDefaultAsync(b => b.Id == id);
-
-            return entity?.ToDomainModel();
         }
 
-        public async Task<IEnumerable<Booking>> ListAsync()
+        public async Task<IEnumerable<Booking>> GetBookingsByCustomerIdAsync(int customerId)
         {
-            var entities = await _ctx.Bookings
-                .Include(b => b.Vehicle)
-                .Include(b => b.Customer)
-                .ToListAsync();
-
-            return entities.Select(e => e.ToDomainModel());
-        }
-
-        public async Task AddAsync(Booking booking)
-        {
-            var entity = booking.ToEntity();
-            await _ctx.Bookings.AddAsync(entity);
-        }
-
-        public void Update(Booking booking)
-        {
-            var entity = booking.ToEntity();
-            _ctx.Bookings.Update(entity);
-        }
-
-        public void Delete(Booking booking)
-        {
-            var entity = booking.ToEntity();
-            _ctx.Bookings.Remove(entity);
-        }
-
-        public async Task<int> SaveChangesAsync()
-        {
-            return await _ctx.SaveChangesAsync();
-        }
-
-        public async Task<IEnumerable<Booking>> ListByCustomerAsync(int customerId)
-        {
-            var entities = await _ctx.Bookings
+            return await _context.Bookings
                 .Where(b => b.CustomerId == customerId)
                 .Include(b => b.Vehicle)
-                .Include(b => b.Customer)
+                .Include(b => b.ServiceType)
+                .OrderByDescending(b => b.SlotStart)
                 .ToListAsync();
+        }
 
-            return entities.Select(e => e.ToDomainModel());
+        public async Task<IEnumerable<Booking>> GetDashboardBookingsAsync()
+        {
+            var activeStatuses = new[] { BookingStatus.Pending, BookingStatus.Assigned, BookingStatus.InProgress, BookingStatus.AwaitingPayment };
+            return await _context.Bookings
+                .Where(b => activeStatuses.Contains(b.Status))
+                .Include(b => b.Customer)
+                .Include(b => b.Vehicle)
+                .OrderBy(b => b.SlotStart)
+                .ToListAsync();
         }
     }
 }

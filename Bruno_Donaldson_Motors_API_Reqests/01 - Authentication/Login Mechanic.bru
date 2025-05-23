@@ -1,0 +1,30 @@
+meta {
+  name: Login Mechanic
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/Auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{mechanicEmail}}",
+    "password": "{{mechanicPassword}}"
+  }
+}
+
+script:post-response {
+  const responseBody = res.getBody();
+  if (responseBody && responseBody.token) {
+    bru.setEnvVar("mechanicToken", responseBody.token);
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.token: isDefined
+}

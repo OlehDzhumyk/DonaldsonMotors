@@ -1,0 +1,15 @@
+meta {
+  name: Get My Bookings (Customer)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/Bookings/my-bookings
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}

@@ -1,0 +1,19 @@
+meta {
+  name: Mechanic Starts Job
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/Bookings/1/start-job
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{mechanicToken}}
+}
+
+assert {
+  res.status: eq 204
+}

@@ -4,47 +4,50 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using DonaldsonMotors.API.Data;
-using DonaldsonMotors.API.Interfaces.Repositories;
-using DonaldsonMotors.API.Repositories;
-using DonaldsonMotors.API.Interfaces.Services;
-using DonaldsonMotors.API.Services;
 using DonaldsonMotors.API.Data.Entities;
-using DonaldsonMotors.API.Logers;
-using System.Security.Claims;
-using Microsoft.AspNetCore.Diagnostics;
+using DonaldsonMotors.API.Interfaces;
+using DonaldsonMotors.API.Services;
+using DonaldsonMotors.API.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
+
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+
+
+// --- Logging Configuration ---
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
-builder.Logging.AddFilter("Microsoft.AspNetCore.Authorization", LogLevel.Debug);
-builder.Logging.AddFilter("Microsoft.AspNetCore.Authentication", LogLevel.Debug);
-builder.Logging.AddFilter("Microsoft.AspNetCore.Identity", LogLevel.Debug);
-
-#region — Конфігурація JWT
+// --- Configuration Reading ---
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
-var jwtExpiryMin = int.Parse(builder.Configuration["Jwt:ExpiryMinutes"] ?? "60");
 var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
-#endregion
 
-#region — Сервіси
+// --- Service Registration ---
+
 builder.Services.AddControllers();
+
+// Register DbContext
 builder.Services.AddDbContext<AppDbContext>(opts =>
     opts.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 
+// Register Identity
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(opts =>
 {
     opts.User.RequireUniqueEmail = true;
     opts.Password.RequiredLength = 6;
-    opts.Password.RequireDigit = true;
+    opts.Password.RequireDigit = false;
+    opts.Password.RequireNonAlphanumeric = false;
+    opts.Password.RequireUppercase = false;
+    opts.Password.RequireLowercase = false;
 })
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
+// Register Authentication & Authorization
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -58,87 +61,81 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = "https://localhost:5000", // твій домен
-        ValidAudience = "https://localhost:5000",
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
         IssuerSigningKey = new SymmetricSecurityKey(keyBytes)
-
     };
 });
-
 builder.Services.AddAuthorization();
 
-
+// Register Swagger for API documentation
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// --- Application Service Registration ---
 
-builder.Services.AddScoped<IBookingRepository, BookingRepository>();
-builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
-builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
-builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
-builder.Services.AddScoped<IJobRepository, JobRepository>();
-builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
-builder.Services.AddScoped<IItemRepository, ItemRepository>();
-builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
-builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();
+// Register Unit of Work. This is the single point of access to all repositories.
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+// NOTE: We no longer need to register each repository individually.
+// The UnitOfWork now manages their lifecycle, simplifying this section.
+
+// Register Application Services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IScheduleService, ScheduleService>();
+// Remember to add other services like IEmailService if you have them
 
+// --- Web Server Configuration ---
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(80); // Or your preferred port
+});
 
-// Kestrel
-builder.WebHost.ConfigureKestrel(options => options.ListenAnyIP(80));
-#endregion
+// =================================================================================
+// --- Application Build and Middleware Pipeline ---
+// =================================================================================
 
 var app = builder.Build();
 
-app.UseMiddleware<RequestLoggingMiddleware>();
-
-#region — Міграції
+// Automatically apply database migrations on startup
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var pending = await db.Database.GetPendingMigrationsAsync();
-    if (pending.Any())
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    if ((await dbContext.Database.GetPendingMigrationsAsync()).Any())
     {
         Console.WriteLine("Applying database migrations...");
-        await db.Database.MigrateAsync();
+        await dbContext.Database.MigrateAsync();
         Console.WriteLine("Migrations complete.");
     }
-}
-#endregion
 
-
-app.UseExceptionHandler(errorApp =>
-{
-    errorApp.Run(async context =>
+    // Seed initial data
+    // This should run after migrations are applied
+    try
     {
-        var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-        var ex = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+        await DbInitializer.SeedDataAsync(scope.ServiceProvider);
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred during DB seeding.");
+    }
+}
 
-        logger.LogError(ex, "Unhandled exception occurred");
-
-        context.Response.StatusCode = 500;
-        await context.Response.WriteAsJsonAsync(new { error = "Something went wrong." });
-    });
-});
-
-
-
-#region — HTTP Pipeline
+// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-app.UseAuthentication();
+// app.UseHttpsRedirection(); // Can be enabled for production
+
+app.UseAuthentication(); // IMPORTANT: Must come before UseAuthorization
 app.UseAuthorization();
 
 app.MapControllers();
-#endregion
 
 app.Run();

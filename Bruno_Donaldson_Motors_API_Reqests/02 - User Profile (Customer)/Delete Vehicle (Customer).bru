@@ -1,0 +1,19 @@
+meta {
+  name: Delete Vehicle
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/api/Users/me/cars/{{testVehicleReg}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}
+
+assert {
+  res.status: eq 204
+}

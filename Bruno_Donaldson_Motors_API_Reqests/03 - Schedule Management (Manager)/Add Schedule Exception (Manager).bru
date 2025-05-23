@@ -1,0 +1,35 @@
+meta {
+  name: Add Schedule Exception
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/Schedule/exceptions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjEiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9lbWFpbGFkZHJlc3MiOiJtYW5hZ2VyQGRvbmFsZHNvbi5jb20iLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiRGVmYXVsdCBNYW5hZ2VyIiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoiTWFuYWdlciIsImV4cCI6MTc0ODA0NTk4OSwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo1MDAwIiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDo1MDAwIn0.06uAL3DpohQq_WdX2gMsuQzzE03YRbS31WRegbqKwbU
+}
+
+body:json {
+  {
+    "date": "2025-12-25T00:00:00Z",
+    "description": "Christmas Day (Closed)"
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.description: eq "Christmas Day (Closed)"
+}
+
+script:post-response {
+  // Зберігаємо ID створеного винятку для подальшого видалення
+  const responseBody = res.getBody();
+  if (responseBody && responseBody.id) {
+    bru.setEnvVar("createdExceptionId", responseBody.id);
+  }
+}
