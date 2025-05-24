@@ -86,7 +86,8 @@ namespace DonaldsonMotors.API.Interfaces
 
     public interface IPartRepository : IRepository<Part>
     {
-        // No special methods needed at the moment.
+        Task<Part?> GetByIdWithSupplierAsync(int id);
+        Task<IEnumerable<Part>> GetAllWithSupplierAsync();
     }
 
     public interface IPaymentRepository : IRepository<Payment>

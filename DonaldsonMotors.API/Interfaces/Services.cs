@@ -1,7 +1,9 @@
 ﻿using DonaldsonMotors.API.Data.Entities;
 using DonaldsonMotors.API.DTOs.Auth;
 using DonaldsonMotors.API.DTOs.Booking;
+using DonaldsonMotors.API.DTOs.Part;
 using DonaldsonMotors.API.DTOs.Schedule;
+using DonaldsonMotors.API.DTOs.Supplier;
 using DonaldsonMotors.API.DTOs.User;
 using DonaldsonMotors.API.DTOs.Vehicle;
 
@@ -55,6 +57,18 @@ namespace DonaldsonMotors.API.Interfaces
     }
 
 
+    /// <summary>
+    /// Service for managing suppliers.
+    /// </summary>
+    public interface ISupplierService
+    {
+        Task<IEnumerable<SupplierResponseDto>> GetAllAsync();
+        Task<SupplierResponseDto?> GetByIdAsync(int id);
+        Task<SupplierResponseDto> CreateAsync(CreateSupplierRequestDto dto);
+        Task<SupplierResponseDto?> UpdateAsync(int id, UpdateSupplierRequestDto dto);
+        Task<bool> DeleteAsync(int id);
+    }
+
 
     /// <summary>
     /// Manages the entire lifecycle of a booking.
@@ -97,5 +111,18 @@ namespace DonaldsonMotors.API.Interfaces
         Task<IEnumerable<DateTime>> GetAvailabilityAsync(DateTime startDate, DateTime endDate);
     }
 
+
+    /// <summary>
+    /// Service for managing parts and stock levels.
+    /// </summary>
+    public interface IPartService
+    {
+        Task<IEnumerable<PartResponseDto>> GetAllAsync(string? searchTerm, int? supplierId);
+        Task<PartResponseDto?> GetByIdAsync(int id);
+        Task<PartResponseDto> CreateAsync(CreatePartRequestDto dto);
+        Task<PartResponseDto?> UpdateAsync(int id, UpdatePartRequestDto dto);
+        Task<PartResponseDto?> UpdateStockLevelAsync(int id, UpdateStockLevelRequestDto dto);
+        Task<bool> DeleteAsync(int id);
+    }
 
 }

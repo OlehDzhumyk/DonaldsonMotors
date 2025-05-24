@@ -75,10 +75,6 @@ namespace DonaldsonMotors.API.Repositories
         public JobRepository(AppDbContext context) : base(context) { }
     }
 
-    public class PartRepository : GenericRepository<Part>, IPartRepository
-    {
-        public PartRepository(AppDbContext context) : base(context) { }
-    }
 
     public class PaymentRepository : GenericRepository<Payment>, IPaymentRepository
     {
