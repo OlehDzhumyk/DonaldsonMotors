@@ -48,13 +48,14 @@ React 19 + TypeScript + Redux Toolkit, Docker Compose, xUnit + Moq + Testcontain
   a mechanic who has no overlapping job.
 - **Jobs and stock.** When mechanics finish a job, they record the work, the labour cost and the parts used.
   The parts come out of stock, and stock can't go below zero.
-- **Emails** rendered from Razor templates with RazorLight and sent with MailKit: welcome, booking confirmed,
-  mechanic assigned, job done (with the amount due), paid invoice and cancellation. In Docker they go to
-  [Mailpit](https://mailpit.axllent.org/), so you can read them at http://localhost:8025.
-- **Layered API:** controllers → services → repositories with a unit of work, DTOs and mappers. There are
-  43 endpoints and a [Bruno](https://www.usebruno.com/) collection of 55 example requests in
-  [`backend/DonaldsonMotors/Bruno_Donaldson_Motors_API_Reqests`](backend/DonaldsonMotors/Bruno_Donaldson_Motors_API_Reqests).
-  Swagger UI is at http://localhost:5080/swagger.
+- **Emails** for each step: welcome, booking confirmed, mechanic assigned, job done (with the amount due),
+  paid invoice and cancellation. They are rendered from Razor templates and sent in the background, so a slow mail
+  server doesn't slow down the app. In Docker they go to [Mailpit](https://mailpit.axllent.org/), so you can read
+  them at http://localhost:8025.
+- **Layered API:** controllers → services → repositories with a unit of work, DTOs and mappers. Errors come back
+  as ProblemDetails from a single exception handler. The database blocks double bookings and lost stock updates when
+  two requests race. There are 43 endpoints and a [Bruno](https://www.usebruno.com/) collection of 55 example
+  requests. Swagger UI is at http://localhost:5080/swagger.
 
 ## Running it
 
@@ -89,13 +90,12 @@ All demo accounts use the password `Password123!`. The login page also lists the
 
 The demo data has a booking in every state, including finished jobs with parts, invoices and payments.
 
-### Running from source
+### Running from source and more detail
 
-- **API:** needs the [.NET 10 SDK](https://dotnet.microsoft.com/download). Start the database and Mailpit with
-  `docker compose up db mailpit`, then run `dotnet run --project backend/DonaldsonMotors/DonaldsonMotors.API`.
-  It reads `appsettings.Development.json`, seeds the same demo data and listens on port 5080.
-- **Frontend:** needs Node 22. Run `cd frontend && npm ci && npm run dev`, then open http://localhost:5173.
-  The Vite dev server forwards `/api` to port 5080.
+- [**backend/README.md**](backend/README.md): running the API with `dotnet run`, configuration, migrations,
+  how the code is laid out and why, and the backend tests.
+- [**frontend/README.md**](frontend/README.md): running the app with Vite, scripts, auth and routing, and the
+  frontend tests.
 
 ## Tests
 
@@ -104,51 +104,13 @@ cd backend/DonaldsonMotors && dotnet test     # needs Docker for the integration
 cd frontend && npm test
 ```
 
-- **Unit tests (32, xUnit + Moq)** cover the booking rules:
-  - slots in the past or already taken;
-  - booking someone else's car;
-  - a mechanic assigned to two jobs at once;
-  - who may start and finish a job;
-  - stock running out, payment, cancellation;
-  - search results limited to the caller's own bookings;
-  - slot generation: lunch, holidays, booked slots and the BST change.
-- **Integration tests (39)** start the real API with `WebApplicationFactory` against PostgreSQL in a
-  [Testcontainers](https://dotnet.testcontainers.org/) container, with the same migrations and seed data as
-  Docker Compose. They test:
-  - registration and login;
-  - what each role may and may not do;
-  - one booking going all the way from Pending to Paid across four roles;
-  - profiles and vehicles, suppliers, parts, service types and holidays;
-  - that the migrations match the model.
-- **Frontend tests (15, Vitest + Testing Library)** cover route protection by role, form validation, the
-  booking card and error messages.
+- **80 backend tests.** There are 37 unit tests (xUnit + Moq) of the booking, schedule and email rules. There are
+  also 43 integration tests that run the real API against PostgreSQL in [Testcontainers](https://dotnet.testcontainers.org/),
+  including a booking going from Pending to Paid across four roles. Line coverage is about 85%.
+- **17 frontend tests** (Vitest + Testing Library).
 
-API line coverage is about 75%, not counting the generated migrations. GitHub Actions runs the backend build
-(with warnings treated as errors), both test suites with a coverage summary, the frontend type check, lint and build,
-and the Docker image builds.
-
-The TypeScript is `strict` with `noUncheckedIndexedAccess`, and ESLint uses `typescript-eslint`'s
-`strictTypeChecked` rules with no errors.
-
-## Project structure
-
-```
-backend/DonaldsonMotors/
-  DonaldsonMotors.API/
-    Controllers/       Auth, Bookings, Schedule, Users, Parts, Suppliers, ServiceTypes
-    Services/          business rules (BookingService, ScheduleService, ...), JWT and email
-    Repositories/      EF Core repositories behind a unit of work
-    Data/              DbContext, entities, migrations, seed data
-    DTOs/ Mappers/     request/response shapes and mapping
-    Templates/         Razor email and invoice templates
-  DonaldsonMotors.Tests/   Unit/ (Moq) and Integration/ (Testcontainers)
-frontend/src/
-  pages/               one page per route
-  components/          BookingCard, Modal, forms, layout
-  api/                 typed API clients (axios)
-  app/                 Redux store and auth slice
-docs/                  screenshots and the database diagram (pgAdmin ERD)
-```
+GitHub Actions runs the backend build (with warnings treated as errors), both test suites, the frontend type check,
+lint and build, and the Docker image builds.
 
 ## What I'd do next
 
