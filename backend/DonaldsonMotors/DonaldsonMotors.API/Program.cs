@@ -7,6 +7,7 @@ using DonaldsonMotors.API.Data;
 using DonaldsonMotors.API.Data.Entities;
 using DonaldsonMotors.API.Interfaces;
 using DonaldsonMotors.API.Services;
+using DonaldsonMotors.API.Services.Email;
 using DonaldsonMotors.API.Options;
 using DonaldsonMotors.API.Exceptions;
 using RazorLight;
@@ -100,6 +101,9 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection(Email
 
 // Register EmailService
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
+builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+builder.Services.AddHostedService<EmailBackgroundService>();
 
 // RazorLight Engine registration
 var razorLightEngine = new RazorLightEngineBuilder()

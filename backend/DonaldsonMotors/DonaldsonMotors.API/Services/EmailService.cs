@@ -1,12 +1,9 @@
 using DonaldsonMotors.API.Interfaces;
 using DonaldsonMotors.API.Options;
+using DonaldsonMotors.API.Services.Email;
 using DonaldsonMotors.API.ViewModels.Emails;
 using DonaldsonMotors.API.ViewModels.Invoice;
-using MailKit.Net.Smtp;
-using MailKit.Security;
 using Microsoft.Extensions.Options;
-using MimeKit;
-using MimeKit.Text;
 using RazorLight;
 
 namespace DonaldsonMotors.API.Services
@@ -16,58 +13,32 @@ namespace DonaldsonMotors.API.Services
         private readonly EmailSettings _emailSettings;
         private readonly ILogger<EmailService> _logger;
         private readonly IRazorLightEngine _razorLightEngine;
+        private readonly IEmailQueue _emailQueue;
 
         public EmailService(
             IOptions<EmailSettings> emailSettings,
             ILogger<EmailService> logger,
-            IRazorLightEngine razorLightEngine)
+            IRazorLightEngine razorLightEngine,
+            IEmailQueue emailQueue)
         {
             _emailSettings = emailSettings.Value;
             _logger = logger;
             _razorLightEngine = razorLightEngine;
+            _emailQueue = emailQueue;
         }
 
-        private async Task SendEmailAsync(string toEmail, string subject, string htmlMessage)
+        // Rendering happens here; sending is left to EmailBackgroundService so the request doesn't wait for SMTP.
+        private Task SendEmailAsync(string toEmail, string subject, string htmlMessage)
         {
             if (string.IsNullOrWhiteSpace(_emailSettings.SmtpHost))
             {
                 _logger.LogInformation("SMTP is not configured; skipping email to {ToEmail} with subject '{Subject}'", toEmail, subject);
-                return;
             }
-
-            try
+            else if (!_emailQueue.TryEnqueue(new EmailMessage(toEmail, subject, htmlMessage)))
             {
-                var email = new MimeMessage();
-                email.From.Add(new MailboxAddress(_emailSettings.FromName, _emailSettings.FromAddress));
-                email.To.Add(MailboxAddress.Parse(toEmail));
-                email.Subject = subject;
-                email.Body = new TextPart(TextFormat.Html) { Text = htmlMessage };
-
-                using var smtp = new SmtpClient();
-                var secureSocketOption = _emailSettings.UseSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.Auto;
-                if (_emailSettings.SmtpPort == 465)
-                {
-                    secureSocketOption = SecureSocketOptions.SslOnConnect;
-                }
-
-                _logger.LogDebug("Connecting to SMTP: {Host}:{Port} with SSL/TLS: {UseSsl}", _emailSettings.SmtpHost, _emailSettings.SmtpPort, secureSocketOption);
-                await smtp.ConnectAsync(_emailSettings.SmtpHost, _emailSettings.SmtpPort, secureSocketOption);
-
-                _logger.LogDebug("Authenticating SMTP user: {User}", _emailSettings.SmtpUser);
-                if (!string.IsNullOrEmpty(_emailSettings.SmtpUser) && !string.IsNullOrEmpty(_emailSettings.SmtpPass))
-                {
-                    await smtp.AuthenticateAsync(_emailSettings.SmtpUser, _emailSettings.SmtpPass);
-                }
-
-                _logger.LogDebug("Sending email to {ToEmail}", toEmail);
-                await smtp.SendAsync(email);
-                await smtp.DisconnectAsync(true);
-                _logger.LogInformation("Email sent successfully to {ToEmail} with subject '{Subject}'", toEmail, subject);
+                _logger.LogError("Email queue is full; dropping email to {ToEmail} with subject '{Subject}'", toEmail, subject);
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to send email to {ToEmail} with subject '{Subject}'. Error: {ErrorMessage}", toEmail, subject, ex.Message);
-            }
+            return Task.CompletedTask;
         }
 
         // Emails are a side effect: a broken template must not fail the request that triggered it
