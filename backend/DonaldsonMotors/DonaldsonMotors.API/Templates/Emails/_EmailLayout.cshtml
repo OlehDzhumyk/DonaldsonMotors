@@ -1,0 +1,89 @@
+﻿@using DonaldsonMotors.API.ViewModels.Emails 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>@ViewBag.Title</title> @* Title will be set in each specific template *@
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .email-wrapper {
+            width: 100%;
+            background-color: #f4f4f4;
+            padding: 20px 0;
+        }
+
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border: 1px solid #dddddd;
+            border-radius: 8px;
+            overflow: hidden; /* Ensures border-radius is respected by children */
+        }
+
+        .email-header {
+            background-color: #003366; /* Donaldson Motors Dark Blue */
+            color: #ffffff;
+            padding: 20px;
+            text-align: center;
+        }
+
+            .email-header h1 {
+                margin: 0;
+                font-size: 24px;
+            }
+
+        .email-content {
+            padding: 25px;
+            line-height: 1.6;
+            color: #333333;
+        }
+
+            .email-content p {
+                margin: 0 0 15px;
+            }
+
+            .email-content strong {
+                color: #003366;
+            }
+
+        .email-footer { 
+            text-align: center;
+            padding: 20px;
+            font-size: 0.9em;
+            color: #777777;
+            border-top: 1px solid #eeeeee;
+        }
+
+        .button { 
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 15px 0;
+            background-color: #0056b3;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-wrapper">
+        <div class="email-container">
+            <div class="email-header">
+                <h1>@Model.CompanyName</h1>
+            </div>
+            <div class="email-content">
+                @RenderBody() 
+            </div>
+        </div>
+    </div>
+</body>
+</html>

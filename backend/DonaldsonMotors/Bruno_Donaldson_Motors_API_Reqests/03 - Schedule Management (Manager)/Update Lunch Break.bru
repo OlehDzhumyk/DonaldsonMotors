@@ -1,0 +1,26 @@
+meta {
+  name: Update Lunch Break
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/api/Schedule/lunch-break
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "startTime": "12:00",
+    "endTime": "13:00"
+  }
+}
+
+assert {
+  res.status: eq 204
+}

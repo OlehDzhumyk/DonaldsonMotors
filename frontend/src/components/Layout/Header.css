@@ -1,0 +1,129 @@
+.app-header {
+    background-color: #ffffff;
+    padding: 15px 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid #f0f0f0;
+    position: relative;
+}
+
+.logo-container img {
+    height: 45px;
+}
+
+.navigation {
+    display: flex;
+}
+
+.navigation nav {
+    display: flex;
+    align-items: center;
+}
+
+.navigation nav a {
+    color: #005A9C;
+    text-decoration: none;
+    font-weight: bold;
+    margin-left: 20px;
+    font-size: 16px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.navigation nav a:hover, .navigation nav a.active {
+    background-color: #e6f0ff;
+    color: #004a7c;
+}
+
+.navigation nav a.cta-button {
+    background-color: #005A9C;
+    color: white;
+}
+
+.navigation nav a.cta-button:hover {
+    background-color: #004a7c;
+}
+
+/* Hamburger Menu Icon (Mobile) */
+.menu-icon {
+    display: none; /* Hidden on desktop */
+    font-size: 30px;
+    color: #005A9C;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+/* Mobile Menu Styles */
+.mobile-nav {
+    display: none; /* Hidden by default */
+    flex-direction: column;
+    position: absolute;
+    top: 72px; /* Height of the header */
+    left: 0;
+    right: 0;
+    background-color: white;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    z-index: 100;
+}
+
+.mobile-nav.open {
+    display: flex;
+}
+
+.mobile-nav a {
+    padding: 15px 30px;
+    text-align: center;
+    border-bottom: 1px solid #f0f0f0;
+    color: #005A9C;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.mobile-nav a:last-child {
+    border-bottom: none;
+}
+
+.mobile-nav a.cta-button {
+    background-color: #005A9C;
+    color: white;
+}
+
+/* Media Query for Mobile */
+@media (max-width: 768px) {
+    .navigation nav {
+        display: none; /* Hide desktop nav */
+    }
+    .menu-icon {
+        display: block; /* Show hamburger icon */
+    }
+}
+
+
+
+.logout-button {
+    background-color: transparent;
+    color: #005A9C;
+    border: 1px solid #005A9C;
+    padding: 7px 15px;
+    margin-left: 20px;
+    font-weight: bold;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.logout-button:hover {
+    background-color: #005A9C;
+    color: white;
+}
+
+.mobile-nav .logout-button {
+    display: block;
+    width: calc(100% - 60px);
+    margin: 15px auto;
+    text-align: center;
+}

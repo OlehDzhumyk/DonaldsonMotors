@@ -1,0 +1,29 @@
+meta {
+  name: Update Supplier
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/api/Suppliers/{{createdSupplierId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "name": "Bruno Test Supplier (Updated)",
+    "email": "updated_supplier@bruno-test.com",
+    "telephone": "09876543210"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.name: eq "Bruno Test Supplier (Updated)"
+  res.body.email: eq "updated_supplier@bruno-test.com"
+}

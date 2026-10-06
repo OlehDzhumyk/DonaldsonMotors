@@ -1,0 +1,29 @@
+meta {
+  name: Mark Booking as Paid
+  type: http
+  seq: 17
+}
+
+patch {
+  url: {{baseUrl}}/api/Bookings/:bookingId/mark-as-paid
+  body: json
+  auth: bearer
+}
+
+params:path {
+  bookingId: 2
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "paymentNotes": "Paid via Stripe transaction #12345XYZ" 
+  }
+}
+
+assert {
+  res.status: eq 204
+}

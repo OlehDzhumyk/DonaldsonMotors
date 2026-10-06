@@ -1,0 +1,21 @@
+meta {
+  name: Search Bookings as Customer (Attempt Other Customer ID - Scoped)
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/api/Bookings/search?customerId=999
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body: isArray
+  res.body.every(b => b.customerId == {{customerId}}): eq true
+}

@@ -1,0 +1,17 @@
+﻿@using DonaldsonMotors.API.ViewModels.Emails
+@model BookingCancelledEmailViewModel
+@{
+    Layout = "Templates/Emails/_EmailLayout.cshtml";
+    ViewBag.Title = "Booking Cancellation Confirmation";
+}
+
+<p>Dear @Model.CustomerName,</p>
+<p>This email is to confirm that your booking (ID: <strong>@Model.BookingId</strong>) with @Model.CompanyName, scheduled for <strong>@Model.BookingDateFormatted</strong>, has been cancelled.</p>
+
+@if (!string.IsNullOrWhiteSpace(Model.CancellationReason))
+{
+    <p><strong>Reason for cancellation:</strong> @Model.CancellationReason</p>
+}
+
+<p>If this cancellation was made in error, or if you wish to reschedule or discuss this further, please contact us at your earliest convenience.</p>
+<p>We hope to see you again soon.</p>

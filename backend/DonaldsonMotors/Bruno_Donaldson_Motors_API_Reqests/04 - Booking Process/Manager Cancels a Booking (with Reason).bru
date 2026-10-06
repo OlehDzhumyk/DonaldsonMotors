@@ -1,0 +1,29 @@
+meta {
+  name: Manager Cancels a Booking
+  type: http
+  seq: 19
+}
+
+patch {
+  url: {{baseUrl}}/api/Bookings/:bookingId/admin-cancel
+  body: json
+  auth: bearer
+}
+
+params:path {
+  bookingId: 5
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "reason": "Manager cancelling: Unforeseen staff shortage for the scheduled date."
+  }
+}
+
+assert {
+  res.status: eq 204
+}

@@ -1,0 +1,35 @@
+meta {
+  name: Add Schedule Exception
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/Schedule/exceptions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "date": "2025-12-25T00:00:00Z",
+    "description": "Christmas Day (Closed)"
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.description: eq "Christmas Day (Closed)"
+}
+
+script:post-response {
+  // Зберігаємо ID створеного винятку для подальшого видалення
+  const responseBody = res.getBody();
+  if (responseBody && responseBody.id) {
+    bru.setEnvVar("createdExceptionId", responseBody.id);
+  }
+}

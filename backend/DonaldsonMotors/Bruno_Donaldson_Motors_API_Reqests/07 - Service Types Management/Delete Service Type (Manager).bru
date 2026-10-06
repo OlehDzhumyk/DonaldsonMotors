@@ -1,0 +1,19 @@
+meta {
+  name: Delete Service Type (Manager)
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{baseUrl}}/api/ServiceTypes/{{createdServiceTypeId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+assert {
+  res.status: eq 204 // No Content
+}

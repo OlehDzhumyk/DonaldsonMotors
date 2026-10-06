@@ -1,0 +1,25 @@
+meta {
+  name: Search Bookings as Mechanic (Implicit ID)
+  type: http
+  seq: 16
+}
+
+get {
+  url: {{baseUrl}}/api/Bookings/search?status=Assigned
+  body: none
+  auth: bearer
+}
+
+params:query {
+  status: Assigned
+}
+
+auth:bearer {
+  token: {{mechanicToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body: isArray
+  res.body.every(b => b.mechanicId == {{mechanicId}} && b.status == "Assigned"): eq true
+}

@@ -1,0 +1,41 @@
+meta {
+  name: Create New Part
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/Parts
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "name": "Bruno Test Part - Oil Filter",
+    "price": 12.99,
+    "costPrice": 5.50,
+    "initialStockLevel": 50,
+    "barcode": "BRUNO-PART-001",
+    "supplierId": {{createdSupplierId}} 
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.name: eq "Bruno Test Part - Oil Filter"
+  res.body.id: isDefined
+  res.body.supplierId: eq {{createdSupplierId}}
+}
+
+script:post-response {
+  const responseBody = res.getBody();
+  if (responseBody && responseBody.id) {
+    bru.setEnvVar("createdPartId", responseBody.id);
+    console.log("Set createdPartId to: " + responseBody.id);
+  }
+}

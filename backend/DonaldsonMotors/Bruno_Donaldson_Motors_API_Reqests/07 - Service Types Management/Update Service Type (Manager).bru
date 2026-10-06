@@ -1,0 +1,30 @@
+meta {
+  name: Update Service Type (Manager)
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/api/ServiceTypes/{{createdServiceTypeId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "name": "{{updatedServiceTypeName}}",
+    "description": "Super premium oil change with all checks and balances.",
+    "price": 89.99,
+    "durationHours": 1.75
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.name: eq "{{updatedServiceTypeName}}"
+  res.body.price: eq 89.99
+}

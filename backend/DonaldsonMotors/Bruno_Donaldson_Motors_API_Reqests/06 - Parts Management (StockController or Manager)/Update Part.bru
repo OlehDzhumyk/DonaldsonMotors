@@ -1,0 +1,31 @@
+meta {
+  name: Update Part
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/api/Parts/{{createdPartId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "name": "Bruno Test Part - Oil Filter (Premium)",
+    "price": 15.99,
+    "costPrice": 6.00,
+    "barcode": "BRUNO-PART-001-PREM"
+    // SupplierId не змінюємо в цьому тесті, але можна
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.name: eq "Bruno Test Part - Oil Filter (Premium)"
+  res.body.price: eq 15.99
+}

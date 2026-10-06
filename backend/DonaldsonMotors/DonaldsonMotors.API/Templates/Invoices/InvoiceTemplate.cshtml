@@ -1,0 +1,124 @@
+﻿@* DonaldsonMotors.API\Templates\Invoices\InvoiceTemplate.cshtml *@
+@using DonaldsonMotors.API.ViewModels.Invoice
+@model InvoiceViewModel
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice - Donaldson Motors - #@Model.InvoiceId</title>
+    <style>
+        body { font-family: 'Helvetica Neue', 'Helvetica', Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f8f8f8; }
+        .invoice-box { max-width: 800px; margin: auto; padding: 30px; border: 1px solid #eee; box-shadow: 0 0 10px rgba(0, 0, 0, .15); background-color: #fff; }
+        .invoice-box table { width: 100%; line-height: inherit; text-align: left; border-collapse: collapse; }
+        .invoice-box table td { padding: 8px; vertical-align: top; }
+        .invoice-box table tr.top table td { padding-bottom: 20px; }
+        .invoice-box table tr.top table td.title { font-size: 30px; line-height: 30px; color: #003366; /* Donaldson Motors Dark Blue */ }
+        .invoice-box table tr.information table td { padding-bottom: 30px; }
+        .invoice-box table tr.heading td { background: #f0f0f0; border-bottom: 1px solid #ddd; font-weight: bold; }
+        .invoice-box table tr.item td { border-bottom: 1px solid #eee; }
+        .invoice-box table tr.item.last td { border-bottom: none; }
+        .invoice-box table tr.total td { text-align:right; }
+        .invoice-box table tr.total td:nth-child(3) { border-top: 2px solid #eee; font-weight: bold; }
+        .company-details p, .customer-details p { margin: 2px 0; }
+        .right { text-align: right; }
+        .strong { font-weight: bold; color: #003366; }
+    </style>
+</head>
+<body>
+    <div class="invoice-box">
+        <table>
+            <tr class="top">
+                <td colspan="4">
+                    <table>
+                        <tr>
+                            <td class="title">
+                                Donaldson Motors&copy;
+                            </td>
+                            <td class="right">
+                                <strong>Invoice #:</strong> @Model.InvoiceId<br>
+                                <strong>Booking ID:</strong> @Model.BookingId<br>
+                                <strong>Issued:</strong> @Model.DateIssuedFormatted<br>
+                                <strong>Status:</strong> <span class="strong">@Model.PaymentStatus</span>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr class="information">
+                <td colspan="4">
+                    <table>
+                        <tr>
+                            <td class="company-details">
+                                <p class="strong">Donaldson Motors</p>
+                                <p>@Model.CompanyAddressLine1</p>
+                                @if (!string.IsNullOrEmpty(Model.CompanyAddressLine2))
+                                {
+                                    <p>@Model.CompanyAddressLine2</p>
+                                }
+                                <p>@Model.CompanyPostcode</p>
+                                <p>@Model.CompanyEmail</p>
+                                <p>@Model.CompanyPhone</p>
+                            </td>
+                            <td class="customer-details right">
+                                <p class="strong">Billed To:</p>
+                                <p>@Model.CustomerName</p>
+                                @if (!string.IsNullOrEmpty(Model.CustomerAddress))
+                                {
+                                    <p>@Model.CustomerAddress</p>
+                                }
+                                <p>@Model.CustomerEmail</p>
+                                @if (!string.IsNullOrEmpty(Model.CustomerPhone))
+                                {
+                                    <p>@Model.CustomerPhone</p>
+                                }
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr class="heading">
+                <td colspan="3">Service & Labour Description</td>
+                <td class="right">Cost</td>
+            </tr>
+            <tr class="item">
+                <td colspan="3">@Model.JobDescription</td>
+                <td class="right">£@Model.JobLabourCostFormatted</td>
+            </tr>
+
+            @if (Model.PartsUsed != null && Model.PartsUsed.Any())
+            {
+                <tr class="heading">
+                    <td>Part / Item</td>
+                    <td class="right">Quantity</td>
+                    <td class="right">Unit Price</td>
+                    <td class="right">Subtotal</td>
+                </tr>
+                foreach (var part in Model.PartsUsed)
+                {
+                    <tr class="item">
+                        <td>@part.PartName</td>
+                        <td class="right">@part.QuantityUsed</td>
+                        <td class="right">£@part.UnitPriceFormatted</td>
+                        <td class="right">£@part.SubtotalFormatted</td>
+                    </tr>
+                }
+                <tr class="item total">
+                    <td colspan="2"></td>
+                    <td class="strong">Total Parts:</td>
+                    <td class="right strong">£@Model.TotalPartsCostFormatted</td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="2"></td>
+                <td class="strong">Grand Total:</td>
+                <td class="right strong">£@Model.GrandTotalFormatted</td>
+            </tr>
+        </table>
+        <div style="text-align:center; margin-top:30px; font-size:0.9em;">
+            <p>Thank you for your business!</p>
+            <p>&copy; @Model.CurrentYear Donaldson Motors. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

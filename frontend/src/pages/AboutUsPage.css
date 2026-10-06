@@ -1,0 +1,75 @@
+.about-us-page .page-header {
+    background-color: #005A9C;
+    color: white;
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.about-us-page .page-header h1 {
+    font-size: 42px;
+}
+
+.about-us-page .main-content-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 40px;
+    max-width: 1200px;
+    margin: -40px auto 60px auto; /* Pulls the wrapper up slightly over the header */
+    padding: 40px;
+    position: relative; /* Needed for the negative margin to work correctly */
+    z-index: 10;
+
+    /* --- NEW STYLES --- */
+    background-color: #ffffff; /* White background for content */
+    border-radius: 12px;       /* Rounded corners */
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.about-us-page .info-section {
+    flex: 1;
+    min-width: 300px;
+}
+
+.about-us-page .info-section h2 {
+    font-size: 32px;
+    color: #005A9C;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 15px;
+    margin-bottom: 25px;
+}
+
+.about-us-page .info-section p, .about-us-page .info-section li {
+    font-size: 18px;
+    line-height: 1.8;
+    color: #555; /* Dark text is now perfectly readable on the white background */
+}
+
+/* ... the rest of the file remains the same ... */
+.about-us-page .info-list {
+    list-style: none;
+    padding: 0;
+}
+
+.about-us-page .info-list li {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+}
+
+.about-us-page .info-list li strong {
+    color: #333;
+    min-width: 150px;
+    display: inline-block;
+}
+
+.about-us-page .map-section {
+    flex: 1.5;
+    min-width: 400px;
+}
+
+.about-us-page .map-section iframe {
+    width: 100%;
+    height: 450px;
+    border: 0;
+    border-radius: 10px;
+}

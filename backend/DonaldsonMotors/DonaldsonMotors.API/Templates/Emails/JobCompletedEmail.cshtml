@@ -1,0 +1,20 @@
+﻿@using DonaldsonMotors.API.ViewModels.Emails
+@model JobCompletedEmailViewModel
+@{
+    Layout = "Templates/Emails/_EmailLayout.cshtml";
+    ViewBag.Title = "Your Vehicle Service is Complete";
+}
+
+<p>Dear @Model.CustomerName,</p>
+<p>Great news! The service for your vehicle (Booking ID: <strong>@Model.BookingId</strong>) at @Model.CompanyName has been completed.</p>
+<p>The total amount due for the service is <strong>£@Model.TotalAmountFormatted</strong>.</p>
+<p>You can view your detailed invoice and proceed with payment through your account dashboard or by contacting us directly. If you've set up a payment link, you can also use the button below:</p>
+
+@if (!string.IsNullOrEmpty(Model.PaymentUrl) && Model.PaymentUrl != "#")
+{
+    <p style="text-align:center;">
+        <a href="@Model.PaymentUrl" class="button">Proceed to Payment</a>
+    </p>
+}
+
+<p>Thank you for choosing Donaldson Motors!</p>

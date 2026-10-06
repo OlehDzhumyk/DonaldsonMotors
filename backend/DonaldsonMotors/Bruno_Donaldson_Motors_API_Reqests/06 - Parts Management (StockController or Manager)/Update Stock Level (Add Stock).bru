@@ -1,0 +1,27 @@
+meta {
+  name: Update Stock Level (Add Stock)
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/api/Parts/{{createdPartId}}/stock
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "changeInQuantity": 20,
+    "reason": "Stock intake from Bruno Test"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.currentStockLevel: eq 70
+}

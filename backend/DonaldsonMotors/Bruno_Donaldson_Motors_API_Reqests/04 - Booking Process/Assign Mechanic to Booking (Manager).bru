@@ -1,0 +1,22 @@
+meta {
+  name: Assign Mechanic to Booking (Manager)
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/api/Bookings/assign-mechanic
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "bookingId": 1, //{{createdBookingId}}
+    "mechanicId": 3
+  }
+}

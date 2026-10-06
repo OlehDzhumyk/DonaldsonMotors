@@ -1,0 +1,21 @@
+meta {
+  name: Get All Parts (No Filter)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/Parts
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body: isArray
+  res.body.filter(p => p.id == {{createdPartId}}).length: eq 1
+}

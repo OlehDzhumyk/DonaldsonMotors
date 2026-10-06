@@ -1,0 +1,12 @@
+﻿@using DonaldsonMotors.API.ViewModels.Emails
+@model TechnicianAssignedEmailViewModel
+@{
+    Layout = "Templates/Emails/_EmailLayout.cshtml"; // Using the shared layout
+    ViewBag.Title = "Mechanic Assigned to Your Booking";
+}
+
+<p>Dear @Model.CustomerName,</p>
+<p>This is an update regarding your booking with @Model.CompanyName (Booking ID: <strong>@Model.BookingId</strong>).</p>
+<p>We are pleased to inform you that mechanic <strong>@Model.MechanicName</strong> has been assigned to service your vehicle on <strong>@Model.BookingDateFormatted</strong>.</p>
+<p>Your vehicle is in good hands. If you have any questions before your appointment, please don't hesitate to contact us.</p>
+<p>We look forward to seeing you!</p>

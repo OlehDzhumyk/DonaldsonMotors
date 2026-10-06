@@ -1,0 +1,29 @@
+meta {
+  name: Register New Mechanic (by Manager)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/Auth/register/staff
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "fullName": "Bruno Test Mechanic",
+    "email": "{{mechanicEmail}}",
+    "password": "{{mechanicPassword}}",
+    "role": "Mechanic" 
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.role: eq "Mechanic"
+}

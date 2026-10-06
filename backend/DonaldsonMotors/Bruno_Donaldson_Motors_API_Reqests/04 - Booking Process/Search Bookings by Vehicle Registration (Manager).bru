@@ -1,0 +1,21 @@
+meta {
+  name: Search Bookings by Vehicle Registration (Manager)
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/Bookings/search?vehicleRegistrationNumber={{testVehicleReg}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body: isArray
+  res.body.every(b => b.vehicleRegistrationNumber == "{{testVehicleReg}}"): eq true
+}

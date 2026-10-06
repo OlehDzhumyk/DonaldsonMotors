@@ -1,0 +1,47 @@
+meta {
+  name: Mechanic Views Their Active Jobs
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/Bookings/search?status=Assigned
+  body: none
+  auth: bearer
+}
+
+params:query {
+  status: Assigned
+}
+
+auth:bearer {
+  token: {{mechanicToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body: isArray
+}
+
+script:post-response {
+  const bookings = res.getBody();
+  if (Array.isArray(bookings) && bookings.length > 0) {
+    // Find a booking that is 'Assigned' to test starting it
+    let bookingToStart = bookings.find(b => b.status === 'Assigned' && b.mechanicId === parseInt(bru.getEnvVar("mechanicId"))); 
+    if (bookingToStart) {
+      bru.setEnvVar("assignedBookingIdToMechanic", bookingToStart.id);
+      console.log("Set assignedBookingIdToMechanic for start: " + bookingToStart.id);
+    } else {
+      // Or find one 'InProgress' to test finishing it
+      let bookingToFinish = bookings.find(b => b.status === 'InProgress' && b.mechanicId === parseInt(bru.getEnvVar("mechanicId")));
+       if (bookingToFinish) {
+        bru.setEnvVar("assignedBookingIdToMechanic", bookingToFinish.id); // Re-use var for simplicity or use new one
+        console.log("Set assignedBookingIdToMechanic for finish: " + bookingToFinish.id);
+      } else {
+        console.log("No suitable 'Assigned' or 'InProgress' booking found for this mechanic in the response.");
+      }
+    }
+  } else {
+    console.log("No active bookings found for this mechanic or response was not an array.");
+  }
+}

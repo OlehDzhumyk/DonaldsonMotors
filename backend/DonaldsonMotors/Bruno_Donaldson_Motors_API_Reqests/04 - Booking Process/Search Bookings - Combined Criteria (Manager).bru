@@ -1,0 +1,21 @@
+meta {
+  name: Search Bookings - Combined Criteria (Manager)
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/api/Bookings/search?customerId={{customerId}}&status=Assigned&dateFrom={{slotStartForCreatedBooking}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body: isArray
+  res.body.every(b => b.customerId == {{customerId}} && b.status == "Assigned"): eq true
+}

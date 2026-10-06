@@ -1,0 +1,11 @@
+﻿@using DonaldsonMotors.API.ViewModels.Emails
+@model WelcomeEmailViewModel
+@{
+    Layout = "Templates/Emails/_EmailLayout.cshtml";
+    ViewBag.Title = "Welcome to " + Model.CompanyName;
+}
+
+<p>Dear @Model.CustomerName,</p>
+<p>Welcome to @Model.CompanyName! We are thrilled to have you as a new member of our community.</p>
+<p>You can now easily book services, manage your vehicles, and view your service history through your personal account on our website.</p>
+<p>We look forward to serving you!</p>

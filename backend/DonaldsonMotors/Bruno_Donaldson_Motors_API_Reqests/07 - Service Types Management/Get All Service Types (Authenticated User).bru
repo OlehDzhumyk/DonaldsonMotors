@@ -1,0 +1,21 @@
+meta {
+  name: Get All Service Types (Authenticated User)
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/ServiceTypes
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body: isArray
+  res.body.filter(st => st.id == {{createdServiceTypeId}}).length: eq 1
+}

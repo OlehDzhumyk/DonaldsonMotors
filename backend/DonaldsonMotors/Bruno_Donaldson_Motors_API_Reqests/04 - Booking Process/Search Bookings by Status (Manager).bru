@@ -1,0 +1,21 @@
+meta {
+  name: Search Bookings by Status (Manager)
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/api/Bookings/search?status=Pending
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body: isArray
+  res.body.every(b => b.status == "Pending"): eq true
+}

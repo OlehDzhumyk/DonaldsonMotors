@@ -1,0 +1,20 @@
+meta {
+  name: Get Available Mechanics For Slot
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/schedule/available-mechanics?slotStart=2025-07-07T15:00:00Z&serviceTypeId=3
+  body: none
+  auth: bearer
+}
+
+params:query {
+  slotStart: 2025-07-07T15:00:00Z
+  serviceTypeId: 3
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}

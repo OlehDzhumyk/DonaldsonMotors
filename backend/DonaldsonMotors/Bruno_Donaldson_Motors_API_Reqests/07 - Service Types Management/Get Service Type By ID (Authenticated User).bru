@@ -1,0 +1,21 @@
+meta {
+  name: Get Service Type By ID
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/ServiceTypes/{{createdServiceTypeId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.id: eq {{createdServiceTypeId}}
+  res.body.name: eq "{{testServiceTypeName}}"
+}

@@ -1,0 +1,34 @@
+meta {
+  name: Mechanic Finishes Job
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/Bookings/:bookingId/finish-job
+  body: json
+  auth: bearer
+}
+
+params:path {
+  bookingId: 6
+}
+
+auth:bearer {
+  token: {{mechanicToken}}
+}
+
+body:json {
+  {
+      "description": "Oil change completed, vehicle checked.",
+      "labourCost": 50.00,
+      "usedParts": [
+        { "partId": 1, "quantity": 1 }, // Oil Filter
+        { "partId": 2, "quantity": 1 }  // 5L Oil
+      ]
+    }
+}
+
+assert {
+  res.status: eq 204
+}

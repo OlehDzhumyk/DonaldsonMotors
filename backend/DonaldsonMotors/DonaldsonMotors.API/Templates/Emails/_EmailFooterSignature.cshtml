@@ -1,0 +1,7 @@
+﻿@using DonaldsonMotors.API.ViewModels.Emails
+@model BaseEmailViewModel
+<div class="email-footer">
+    <p>If you have any questions, please contact us at <a href="mailto:@Model.CompanyContactEmail">@Model.CompanyContactEmail</a>.</p>
+    <p>&copy; @Model.CurrentYear @Model.CompanyName. All rights reserved.</p>
+    <p><a href="@Model.WebsiteUrl">Visit our website</a></p>
+</div>

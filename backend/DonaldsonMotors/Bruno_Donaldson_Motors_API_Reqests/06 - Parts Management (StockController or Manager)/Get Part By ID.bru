@@ -1,0 +1,21 @@
+meta {
+  name: Get Part By ID
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/Parts/{{createdPartId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.id: eq {{createdPartId}}
+  res.body.name: eq "Bruno Test Part - Oil Filter"
+}

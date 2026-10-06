@@ -1,0 +1,91 @@
+/* src/pages/LoginPage.css */
+.login-page-container { /* Changed from register-page-container */
+    background-color: #f0f4f8;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.login-form-card { /* Changed from register-form-card */
+    max-width: 420px;
+    width: 100%;
+    padding: 40px;
+    background-color: white;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+}
+
+.login-form-card h2 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #333;
+    font-size: 28px;
+}
+
+/* .form-group, .error-message, .submit-button, etc. can be reused from RegisterPage.css
+   or defined here similarly if you prefer separate files without shared classes.
+   For this example, we'll assume you might want to keep them separate for future distinctions.
+*/
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #555;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+}
+
+.error-message {
+    color: #d93025;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+.login-error { /* Specific class for login error display */
+    color: #d93025;
+    text-align: center;
+    margin-bottom: 15px;
+    background-color: rgba(217, 48, 37, 0.1);
+    padding: 10px;
+    border-radius: 6px;
+}
+
+.submit-button {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 6px;
+    background-color: #005A9C;
+    color: white;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.submit-button:disabled {
+    background-color: #a0a0a0;
+}
+
+.register-link { /* Changed from login-link */
+    text-align: center;
+    margin-top: 20px;
+    font-size: 14px;
+}
+
+.register-link a {
+    color: #005A9C;
+    text-decoration: none;
+    font-weight: 600;
+}

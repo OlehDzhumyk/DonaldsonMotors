@@ -1,0 +1,21 @@
+meta {
+  name: Search Bookings by Mechanic ID (Manager)
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/Bookings/search?mechanicId={{mechanicId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body: isArray
+  res.body.every(b => b.mechanicId == {{mechanicId}}): eq true
+}

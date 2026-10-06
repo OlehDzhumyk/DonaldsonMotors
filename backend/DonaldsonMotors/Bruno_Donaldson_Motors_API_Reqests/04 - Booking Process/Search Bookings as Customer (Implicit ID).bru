@@ -1,0 +1,25 @@
+meta {
+  name: Search Bookings as Customer (Implicit ID)
+  type: http
+  seq: 14
+}
+
+get {
+  url: {{baseUrl}}/api/Bookings/search?status=Pending
+  body: none
+  auth: bearer
+}
+
+params:query {
+  status: Pending
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body: isArray
+  res.body.every(b => b.customerId == {{customerId}} && b.status == "Pending"): eq true
+}

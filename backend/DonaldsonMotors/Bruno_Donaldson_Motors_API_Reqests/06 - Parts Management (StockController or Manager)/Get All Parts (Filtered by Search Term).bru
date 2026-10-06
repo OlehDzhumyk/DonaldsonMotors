@@ -1,0 +1,21 @@
+meta {
+  name: Get All Parts (Filtered by Search Term)
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/Parts?searchTerm=Bruno Test Part
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body: isArray
+  res.body.filter(p => p.name.includes("Bruno Test Part")).length: gte 1
+}

@@ -1,0 +1,137 @@
+/* src/components/FinishJobModal/FinishJobModal.css */
+/* Re-use modal-overlay, modal-header, close-modal-btn, form-group, form-actions from ManagerDashboardPage.css or define them globally */
+
+.finish-job-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 25px 30px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    z-index: 1000;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+
+    color: black;
+}
+
+.finish-job-modal h3,
+.finish-job-modal textarea,
+.finish-job-modal input,
+.finish-job-modal button,
+.finish-job-modal li,
+.finish-job-modal .part-info {
+    color: black;
+}
+
+.finish-job-modal h3 {
+    margin-top: 0;
+    color: #005A9C;
+}
+
+.finish-job-modal textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    font-size: 15px;
+    margin-bottom: 10px;
+}
+
+.part-search-section {
+    margin-top: 15px;
+    margin-bottom: 15px;
+    padding: 15px;
+    border: 1px solid #eee;
+    border-radius: 6px;
+}
+
+.part-search-input-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.part-search-input-group input {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+.part-search-input-group button {
+    padding: 10px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.part-search-input-group button:disabled {
+    background-color: #aaa;
+}
+
+
+.searched-parts-list, .used-parts-list {
+    list-style-type: none;
+    padding: 0;
+    max-height: 150px; /* Limit height */
+    overflow-y: auto;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.searched-parts-list li, .used-parts-list li {
+    padding: 8px 10px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.searched-parts-list li:last-child, .used-parts-list li:last-child {
+    border-bottom: none;
+}
+
+.searched-parts-list button {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.used-parts-list .part-info {
+    flex-grow: 1;
+}
+.used-parts-list .quantity-control {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.used-parts-list .quantity-control input {
+    width: 50px;
+    text-align: center;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+.used-parts-list .quantity-control button {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 3px 7px;
+    font-size: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+. {
+ text-decoration-color: black;
+}

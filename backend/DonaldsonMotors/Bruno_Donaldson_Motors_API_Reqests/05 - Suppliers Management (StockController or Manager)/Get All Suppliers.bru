@@ -1,0 +1,21 @@
+meta {
+  name: Get All Suppliers
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/Suppliers
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body: isArray
+  res.body.filter(s => s.id == {{createdSupplierId}}).length: eq 1
+}

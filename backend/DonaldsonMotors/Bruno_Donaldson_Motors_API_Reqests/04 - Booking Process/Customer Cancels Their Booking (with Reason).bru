@@ -1,0 +1,29 @@
+meta {
+  name: Customer Cancels Their Booking
+  type: http
+  seq: 18
+}
+
+patch {
+  url: {{baseUrl}}/api/Bookings/:bookingId/cancel-by-customer
+  body: json
+  auth: bearer
+}
+
+params:path {
+  bookingId: 5
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}
+
+body:json {
+  {
+    "reason": "Customer decided to reschedule for a later date due to unforeseen circumstances."
+  }
+}
+
+assert {
+  res.status: eq 204
+}

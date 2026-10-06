@@ -1,0 +1,19 @@
+meta {
+  name: Delete Supplier (Success)
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/api/Suppliers/{{createdSupplierId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+assert {
+  res.status: eq 204
+}

@@ -1,0 +1,162 @@
+/* src/pages/MyBookingsPage.css */
+/* Styles for the customer's "My Bookings" page. */
+
+.my-bookings-page-container {
+    max-width: 900px;
+    margin: 30px auto;
+    padding: 20px;
+}
+
+.my-bookings-page-container h1 {
+    text-align: center;
+    color: #005A9C; /* Donaldson Blue */
+    margin-bottom: 30px;
+}
+
+/* View Mode Toggle Buttons (Active/History) */
+/* NOTE: These styles are identical to those in ManagerDashboardPage.css.
+   Consider moving them to a global/common CSS file for reusability. */
+.view-mode-toggle {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 30px;
+    gap: 10px;
+}
+
+.view-mode-toggle button {
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    border: 1px solid #005A9C;
+    background-color: white;
+    color: #005A9C;
+    border-radius: 6px;
+    transition: background-color 0.3s, color 0.3s;
+    font-weight: 500;
+}
+
+.view-mode-toggle button:hover:not(:disabled) {
+    background-color: #e6f0ff;
+}
+
+.view-mode-toggle button.active {
+    background-color: #005A9C;
+    color: white;
+    font-weight: bold;
+}
+
+.view-mode-toggle button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Grid for displaying booking cards */
+.bookings-grid {
+    display: grid;
+    /* For now, single column. Can change to repeat(auto-fill, minmax(300px, 1fr)) for multi-column cards */
+    grid-template-columns: 1fr;
+    gap: 20px;
+}
+
+.booking-card { /* Customer's booking card style */
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-left: 5px solid #007bff; /* Example default border, can be status-driven */
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    color: #333; /* Default text color for card content */
+}
+/* Example: if customer card also uses status borders */
+.booking-card.status-pending,
+.booking-card.status-booked { border-left-color: #ffc107; }
+.booking-card.status-assigned { border-left-color: #17a2b8; }
+.booking-card.status-inprogress { border-left-color: #007bff; }
+.booking-card.status-completed,
+.booking-card.status-paid { border-left-color: #28a745; }
+.booking-card.status-awaitingpayment,
+.booking-card.status-workcompleted { border-left-color: #fd7e14; }
+.booking-card.status-cancelled,
+.booking-card.status-cancelledbycustomer,
+.booking-card.status-cancelledbymanager { border-left-color: #6c757d; }
+.booking-card.status-archived { border-left-color: #343a40; }
+
+
+.booking-card h3 {
+    margin-top: 0;
+    color: #005A9C; /* Donaldson Blue for service name */
+    font-size: 20px;
+    margin-bottom: 10px;
+}
+
+.booking-card p {
+    margin: 6px 0;
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+.booking-card strong {
+    color: #333; /* Darker label text */
+}
+
+/* Status badge for customer bookings */
+/* NOTE: These .status-badge styles are different from .status-text used in manager/mechanic cards.
+   If a consistent badge is desired, choose one style and make it global. */
+.status-badge {
+    display: inline-block; /* Make it an inline block to respect padding */
+    padding: 4px 10px; /* Adjusted padding */
+    border-radius: 12px; /* Pill shape */
+    font-weight: bold;
+    font-size: 13px; /* Slightly smaller */
+    color: white;
+    text-transform: capitalize; /* e.g., Pending, Inprogress */
+    margin-left: 5px; /* Space from "Status:" label */
+}
+
+/* Specific status badge colors - ensure class names match your booking.status values (lowercase) */
+.status-badge.status-pending,
+.status-badge.status-booked { background-color: #ffc107; color: #333; }
+.status-badge.status-assigned { background-color: #17a2b8; }
+.status-badge.status-inprogress { background-color: #007bff; }
+.status-badge.status-completed,
+.status-badge.status-paid { background-color: #28a745; }
+.status-badge.status-awaitingpayment,
+.status-badge.status-workcompleted { background-color: #fd7e14; }
+.status-badge.status-cancelled,
+.status-badge.status-cancelledbycustomer,
+.status-badge.status-cancelledbymanager { background-color: #6c757d; }
+.status-badge.status-archived { background-color: #343a40; }
+.status-badge.status-unknown { background-color: #adb5bd; }
+
+
+/* Styles for the "Cancel Booking" button (if it were present) */
+.cancel-booking-btn {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-top: 15px;
+    transition: background-color 0.3s;
+}
+.cancel-booking-btn:hover:not(:disabled) {
+    background-color: #c82333;
+}
+.cancel-booking-btn:disabled {
+    background-color: #a0a0a0;
+    cursor: not-allowed;
+}
+
+/* Loading and error messages */
+.loading-message, .error-message-bookings {
+    text-align: center;
+    font-size: 16px;
+    padding: 15px;
+    margin-top: 20px;
+}
+.error-message-bookings {
+    color: #d93025;
+    /* background-color, border, etc. can be added as in ManagerDashboardPage.css */
+}

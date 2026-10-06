@@ -1,0 +1,21 @@
+meta {
+  name: Search Bookings by Date Range (Manager)
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/Bookings/search?dateFrom={{slotStartForCreatedBooking}}&dateTo={{slotStartForCreatedBooking}} // Example: search for bookings on a specific day
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body: isArray
+  res.body.filter(b => b.id == {{createdBookingId}}).length: eq 1
+}

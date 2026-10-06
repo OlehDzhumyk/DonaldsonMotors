@@ -1,0 +1,16 @@
+﻿@using DonaldsonMotors.API.ViewModels.Emails
+@model BookingConfirmationEmailViewModel
+@{
+    Layout = "Templates/Emails/_EmailLayout.cshtml";
+    ViewBag.Title = "Booking Confirmation";
+}
+
+<p>Dear @Model.CustomerName,</p>
+<p>Thank you for your booking with @Model.CompanyName. We're pleased to confirm your service appointment.</p>
+<ul>
+    <li><strong>Booking ID:</strong> @Model.BookingId</li>
+    <li><strong>Service:</strong> @Model.ServiceTypeName</li>
+    <li><strong>Vehicle Registration:</strong> @Model.VehicleRegistration</li>
+    <li><strong>Scheduled Date & Time:</strong> @Model.BookingDateFormatted</li>
+</ul>
+<p>We look forward to seeing you!</p>
