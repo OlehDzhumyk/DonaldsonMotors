@@ -1,4 +1,4 @@
-﻿using DonaldsonMotors.API.Data;
+using DonaldsonMotors.API.Data;
 using DonaldsonMotors.API.Data.Entities;
 using DonaldsonMotors.API.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -30,6 +30,7 @@ namespace DonaldsonMotors.API.Repositories
         {
             return await _context.Bookings
                 .Where(b => b.CustomerId == customerId)
+                .Include(b => b.Customer)
                 .Include(b => b.Vehicle)
                 .Include(b => b.Mechanic)
                 .Include(b => b.ServiceType)
@@ -45,6 +46,7 @@ namespace DonaldsonMotors.API.Repositories
                 .Include(b => b.Customer)
                 .Include(b => b.Mechanic)
                 .Include(b => b.Vehicle)
+                .Include(b => b.ServiceType)
                 .OrderBy(b => b.SlotStart)
                 .ToListAsync();
         }
