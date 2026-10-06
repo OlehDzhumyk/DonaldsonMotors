@@ -1,4 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
+
+namespace DonaldsonMotors.API.DTOs.Booking;
 
 public class CreateBookingRequestDto
 {

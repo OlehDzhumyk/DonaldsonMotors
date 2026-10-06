@@ -1,4 +1,4 @@
-﻿using DonaldsonMotors.API.Data.Entities;
+using DonaldsonMotors.API.Data.Entities;
 using DonaldsonMotors.API.Interfaces;
 using DonaldsonMotors.API.Options;
 using Microsoft.AspNetCore.Identity;
@@ -7,6 +7,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+
+namespace DonaldsonMotors.API.Services;
 
 public class JwtService : IJwtService
 {
