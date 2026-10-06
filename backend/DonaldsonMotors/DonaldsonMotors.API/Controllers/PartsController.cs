@@ -144,6 +144,7 @@ namespace DonaldsonMotors.API.Controllers
                 }
                 return Ok(updatedPart);
             }
+            catch (ConcurrencyConflictException ex) { return Conflict(ex.Message); }
             catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
             catch (Exception ex)
             {

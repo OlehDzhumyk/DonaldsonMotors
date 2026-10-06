@@ -5,6 +5,8 @@ using DonaldsonMotors.API.Exceptions;
 using DonaldsonMotors.API.Mappers;
 using System.Security.Claims;
 using DonaldsonMotors.API.ViewModels.Invoice;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace DonaldsonMotors.API.Services
 {
@@ -71,7 +73,15 @@ namespace DonaldsonMotors.API.Services
             };
 
             await _unitOfWork.Bookings.AddAsync(newBooking);
-            await _unitOfWork.CompleteAsync();
+            try
+            {
+                await _unitOfWork.CompleteAsync();
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                // Another customer took the slot between our check above and this save.
+                throw new SlotUnavailableException(slotStartUtc, "This time slot has just been booked. Please select another one.");
+            }
 
             _logger.LogInformation("Successfully created BookingId {BookingId} for CustomerId {CustomerId}", newBooking.Id, customerId);
 

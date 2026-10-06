@@ -20,6 +20,9 @@ namespace DonaldsonMotors.API.Data.Entities
 
         public string? Barcode { get; set; }
 
+        /// <summary>Postgres xmin; stops two saves from overwriting each other's stock change.</summary>
+        public uint Version { get; set; }
+
         public int SupplierId { get; set; }
         public Supplier Supplier { get; set; } = null!;
 

@@ -281,6 +281,8 @@ namespace DonaldsonMotors.API.Controllers
             }
             catch (BookingNotFoundException ex) { return NotFound(ex.Message); }
             catch (BookingAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, ex.Message); }
+            catch (InsufficientStockException ex) { return Conflict(ex.Message); }
+            catch (ConcurrencyConflictException ex) { return Conflict(ex.Message); }
             catch (JobOperationException ex) { return BadRequest(ex.Message); }
             catch (Exception ex)
             {

@@ -39,6 +39,16 @@ namespace DonaldsonMotors.API.Data
             builder.Entity<JobPart>()
                 .HasKey(jp => new { jp.JobId, jp.PartId });
 
+            builder.Entity<Part>()
+                .Property(p => p.Version)
+                .IsRowVersion();
+
+            // One live booking per slot: the garage takes one car at a time. Cancelled bookings free the slot.
+            builder.Entity<Booking>()
+                .HasIndex(b => b.SlotStart)
+                .IsUnique()
+                .HasFilter($"\"Status\" <> {(int)BookingStatus.Cancelled}");
+
             // Set primary key for Vehicle, as it's not the default 'Id'
             builder.Entity<Vehicle>()
                 .HasKey(v => v.RegistrationNumber);

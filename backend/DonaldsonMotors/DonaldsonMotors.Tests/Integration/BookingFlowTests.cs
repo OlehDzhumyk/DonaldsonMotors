@@ -140,6 +140,31 @@ public class BookingFlowTests(ApiFactory app)
     }
 
     [Fact]
+    public async Task FinishingAJobWithMorePartsThanInStock_IsAConflict()
+    {
+        var customer = await app.ClientForAsync(DemoAccounts.Customer);
+        var manager = await app.ClientForAsync(DemoAccounts.Manager);
+        var mechanic = await app.ClientForAsync(DemoAccounts.Mechanic);
+        var booking = await BookAsync(customer);
+        var mechanics = await manager.GetFromJsonAsync<List<MechanicAvailabilityDto>>(
+            $"/api/schedule/available-mechanics?slotStart={booking.SlotStart:O}&serviceTypeId={booking.ServiceTypeId}");
+        var sam = mechanics!.Single(m => m.MechanicName == "Sam Mechanic");
+        await manager.PatchAsJsonAsync("/api/bookings/assign-mechanic", new { bookingId = booking.Id, mechanicId = sam.MechanicId });
+        await mechanic.PostAsync($"/api/bookings/{booking.Id}/start-job", null);
+        var part = (await mechanic.GetFromJsonAsync<List<PartResponseDto>>("/api/parts"))![0];
+
+        var response = await mechanic.PostAsJsonAsync($"/api/bookings/{booking.Id}/finish-job", new
+        {
+            description = "Tried to fit more than we have",
+            labourCost = 10m,
+            usedParts = new[] { new { partId = part.Id, quantity = part.CurrentStockLevel + 1 } },
+        });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("InProgress", (await GetBookingAsync(customer, booking.Id)).Status);
+    }
+
+    [Fact]
     public async Task OnlyStaffWithTheRightRole_CanTakePayments()
     {
         var mechanic = await app.ClientForAsync(DemoAccounts.Mechanic);

@@ -1,5 +1,7 @@
 ﻿using DonaldsonMotors.API.Interfaces;
-using DonaldsonMotors.API.Repositories; 
+using DonaldsonMotors.API.Exceptions;
+using DonaldsonMotors.API.Repositories;
+using Microsoft.EntityFrameworkCore;
 namespace DonaldsonMotors.API.Data
 {
     public class UnitOfWork : IUnitOfWork
@@ -37,7 +39,14 @@ namespace DonaldsonMotors.API.Data
 
         public async Task<int> CompleteAsync()
         {
-            return await _context.SaveChangesAsync();
+            try
+            {
+                return await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                throw new ConcurrencyConflictException(ex);
+            }
         }
 
         public void Dispose()
