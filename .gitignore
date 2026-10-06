@@ -1,0 +1,17 @@
+# Local secrets and overrides
+.env
+
+# Build output and dependencies
+**/bin/
+**/obj/
+node_modules/
+dist/
+TestResults/
+coverage/
+
+# Editors and OS
+.vs/
+.idea/
+.vscode/
+*.user
+.DS_Store

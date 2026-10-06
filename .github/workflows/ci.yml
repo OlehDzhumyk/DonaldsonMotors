@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    name: API (.NET)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/DonaldsonMotors
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore
+      - name: Build (warnings are errors)
+        run: dotnet build -c Release --no-restore -warnaserror
+      - name: Test (integration tests start PostgreSQL in Docker)
+        run: >
+          dotnet test -c Release --no-build
+          --settings coverage.runsettings --collect:"XPlat Code Coverage" --results-directory TestResults
+      - name: Coverage summary
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import glob, xml.etree.ElementTree as ET
+          root = ET.parse(glob.glob('TestResults/*/coverage.cobertura.xml')[0]).getroot()
+          print(f"API line coverage: **{float(root.get('line-rate')):.0%}**, branch coverage: {float(root.get('branch-rate')):.0%}")
+          PY
+
+  frontend:
+    name: Frontend (React)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  docker:
+    name: Docker images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build
