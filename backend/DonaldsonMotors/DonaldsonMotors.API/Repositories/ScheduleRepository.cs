@@ -24,7 +24,7 @@ namespace DonaldsonMotors.API.Repositories
         /// Gets the schedule settings. If they don't exist in the DB,
         /// it returns a new instance with sensible defaults.
         /// </summary>
-        public async Task<ScheduleSettings> GetSettingsAsync()
+        public async Task<ScheduleSettings?> GetSettingsAsync()
         {
             return await _context.ScheduleSettings.FirstOrDefaultAsync(s => s.Id == 1)
                 ?? new ScheduleSettings

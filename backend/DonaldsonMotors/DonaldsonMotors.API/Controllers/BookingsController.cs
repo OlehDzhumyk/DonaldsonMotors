@@ -69,7 +69,7 @@ namespace DonaldsonMotors.API.Controllers
                 return CreatedAtAction(nameof(GetMyBookings), null, createdBooking);
             }
             catch (UserProfileNotFoundException ex) { return NotFound(ex.Message); }
-            catch (VehicleAccessDeniedException ex) { return Forbid(ex.Message); }
+            catch (VehicleAccessDeniedException ex) { return StatusCode(StatusCodes.Status403Forbidden, ex.Message); }
             catch (ServiceTypeNotFoundException ex) { return BadRequest(ex.Message); }
             catch (SlotUnavailableException ex) { return Conflict(ex.Message); }
             catch (BookingOperationException ex) { return BadRequest(ex.Message); }
@@ -95,6 +95,39 @@ namespace DonaldsonMotors.API.Controllers
             var customerId = GetCurrentUserId();
             var bookings = await _bookingService.GetMyBookingsAsync(customerId);
             return Ok(bookings);
+        }
+
+        /// <summary>
+        /// Cancels one of the current customer's own bookings.
+        /// </summary>
+        /// <param name="id">The ID of the booking to cancel.</param>
+        /// <param name="dto">The request body containing the cancellation reason.</param>
+        /// <response code="204">If the booking was cancelled successfully.</response>
+        /// <response code="400">If the booking can no longer be cancelled.</response>
+        /// <response code="403">If the booking belongs to another customer.</response>
+        /// <response code="404">If the booking is not found.</response>
+        [HttpPatch("{id}/cancel-by-customer")]
+        [Authorize(Roles = Roles.Customer)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> CancelBookingByCustomer(int id, [FromBody] CancelBookingRequestDto dto)
+        {
+            try
+            {
+                var customerId = GetCurrentUserId();
+                await _bookingService.CancelBookingByCustomerAsync(id, customerId, dto);
+                return NoContent();
+            }
+            catch (BookingNotFoundException ex) { return NotFound(ex.Message); }
+            catch (BookingAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, ex.Message); }
+            catch (BookingCancellationNotAllowedException ex) { return BadRequest(ex.Message); }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error cancelling booking {BookingId} by customer.", id);
+                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
+            }
         }
 
         // === MANAGER ENDPOINTS ===
@@ -214,7 +247,7 @@ namespace DonaldsonMotors.API.Controllers
                 return NoContent();
             }
             catch (BookingNotFoundException ex) { return NotFound(ex.Message); }
-            catch (BookingAccessException ex) { return Forbid(ex.Message); }
+            catch (BookingAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, ex.Message); }
             catch (JobStartConditionException ex) { return BadRequest(ex.Message); }
             catch (Exception ex)
             {
@@ -247,7 +280,7 @@ namespace DonaldsonMotors.API.Controllers
                 return NoContent();
             }
             catch (BookingNotFoundException ex) { return NotFound(ex.Message); }
-            catch (BookingAccessException ex) { return Forbid(ex.Message); }
+            catch (BookingAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, ex.Message); }
             catch (JobOperationException ex) { return BadRequest(ex.Message); }
             catch (Exception ex)
             {
@@ -338,7 +371,7 @@ namespace DonaldsonMotors.API.Controllers
             catch (UnauthorizedAccessException ex)
             {
                 _logger.LogWarning("Booking search failed due to unauthorized access: {ErrorMessage}", ex.Message);
-                return Forbid(ex.Message);
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
             }
             catch (Exception ex)
             {

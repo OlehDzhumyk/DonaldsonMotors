@@ -126,7 +126,7 @@ namespace DonaldsonMotors.API.Services
             userToEdit.PhoneNumber = dto.TelephoneNumber ?? userToEdit.PhoneNumber;
 
             // Update Email if provided and changed
-            if (!string.IsNullOrWhiteSpace(dto.Email) && !userToEdit.Email.Equals(dto.Email, StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(dto.Email) && !string.Equals(userToEdit.Email, dto.Email, StringComparison.OrdinalIgnoreCase))
             {
                 // Check if the new email is already taken
                 var existingUserWithNewEmail = await _userManager.FindByEmailAsync(dto.Email);
@@ -173,13 +173,15 @@ namespace DonaldsonMotors.API.Services
 
             _logger.LogInformation("Admin successfully updated profile for UserId {UserIdToEdit}", userIdToEdit);
 
-            var updatedUser = await _unitOfWork.Users.GetUserByIdAsync(userIdToEdit);
+            var updatedUser = await _unitOfWork.Users.GetUserByIdAsync(userIdToEdit)
+                ?? throw new UserProfileNotFoundException(userIdToEdit);
 
             if (updatedUser is Customer updatedCustomer)
             {
                 // Get the full profile with vehicles for customers.
-                return (await _unitOfWork.Users.GetCustomerByIdWithVehiclesAsync(updatedCustomer.Id))
-                    .ToProfileResponseDto();
+                var customerWithVehicles = await _unitOfWork.Users.GetCustomerByIdWithVehiclesAsync(updatedCustomer.Id)
+                    ?? throw new UserProfileNotFoundException(updatedCustomer.Id);
+                return customerWithVehicles.ToProfileResponseDto();
             }
 
             // For non-customer users (Employees), return a basic profile DTO.

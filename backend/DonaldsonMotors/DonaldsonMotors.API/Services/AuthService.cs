@@ -42,7 +42,7 @@ namespace DonaldsonMotors.API.Services
             {
                 // This check is more robust if the controller doesn't strictly control the role for staff
                 _logger.LogWarning("Invalid role '{Role}' provided for registration of {Email}.", dto.Role, dto.Email);
-                throw new InvalidRoleException(dto.Role, $"Invalid role '{dto.Role}' specified for registration.");
+                throw new InvalidRoleException(dto.Role ?? "(none)", $"Invalid role '{dto.Role}' specified for registration.");
             }
 
 

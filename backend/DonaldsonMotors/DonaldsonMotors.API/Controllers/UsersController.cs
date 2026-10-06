@@ -261,7 +261,7 @@ namespace DonaldsonMotors.API.Controllers
             catch (VehicleAccessDeniedException ex)
             {
                 _logger.LogWarning(ex, "Vehicle update failed, access denied. Message: {ErrorMessage}", ex.Message);
-                return Forbid(ex.Message);
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
             }
             catch (UnauthorizedAccessException ex)
             {
@@ -306,7 +306,7 @@ namespace DonaldsonMotors.API.Controllers
             catch (VehicleAccessDeniedException ex)
             {
                 _logger.LogWarning(ex, "Vehicle delete failed, access denied. Message: {ErrorMessage}", ex.Message);
-                return Forbid(ex.Message);
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
             }
             catch (InvalidOperationException ex) // This is thrown by the service if the vehicle has active bookings.
             {

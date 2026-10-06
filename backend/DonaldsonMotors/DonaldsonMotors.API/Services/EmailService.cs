@@ -1,4 +1,4 @@
-﻿using DonaldsonMotors.API.Interfaces;
+using DonaldsonMotors.API.Interfaces;
 using DonaldsonMotors.API.Options;
 using DonaldsonMotors.API.ViewModels.Emails;
 using DonaldsonMotors.API.ViewModels.Invoice;
@@ -29,6 +29,12 @@ namespace DonaldsonMotors.API.Services
 
         private async Task SendEmailAsync(string toEmail, string subject, string htmlMessage)
         {
+            if (string.IsNullOrWhiteSpace(_emailSettings.SmtpHost))
+            {
+                _logger.LogInformation("SMTP is not configured; skipping email to {ToEmail} with subject '{Subject}'", toEmail, subject);
+                return;
+            }
+
             try
             {
                 var email = new MimeMessage();
@@ -64,14 +70,29 @@ namespace DonaldsonMotors.API.Services
             }
         }
 
+        // Emails are a side effect: a broken template must not fail the request that triggered it
+        private async Task SendTemplateAsync<TModel>(string toEmail, string subject, string templatePath, TModel model)
+        {
+            string htmlBody;
+            try
+            {
+                htmlBody = await _razorLightEngine.CompileRenderAsync(templatePath, model);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to render email template {TemplatePath} for {ToEmail}", templatePath, toEmail);
+                return;
+            }
+            await SendEmailAsync(toEmail, subject, htmlBody);
+        }
+
         // --- Existing email methods (SendWelcomeEmailAsync, SendBookingConfirmedAsync, etc.) ---
 
         public async Task SendWelcomeEmailAsync(string toEmail, string customerName)
         {
             var subject = "Welcome to Donaldson Motors!";
             var viewModel = new WelcomeEmailViewModel { CustomerName = customerName }; // Ensure BaseEmailViewModel properties are set if needed
-            string htmlBody = await _razorLightEngine.CompileRenderAsync("Templates/Emails/WelcomeEmail.cshtml", viewModel);
-            await SendEmailAsync(toEmail, subject, htmlBody);
+            await SendTemplateAsync(toEmail, subject, "Templates/Emails/WelcomeEmail.cshtml", viewModel);
         }
 
         public async Task SendBookingConfirmedAsync(string toEmail, string customerName, DateTime bookingDate, int bookingId, string serviceTypeName, string vehicleRegistration)
@@ -92,8 +113,7 @@ namespace DonaldsonMotors.API.Services
             viewModel.WebsiteUrl = _emailSettings.WebsiteUrl;
 
 
-            string htmlBody = await _razorLightEngine.CompileRenderAsync("Templates/Emails/BookingConfirmationEmail.cshtml", viewModel);
-            await SendEmailAsync(toEmail, subject, htmlBody);
+            await SendTemplateAsync(toEmail, subject, "Templates/Emails/BookingConfirmationEmail.cshtml", viewModel);
         }
 
         public async Task SendTechnicianAssignedAsync(string toEmail, string customerName, string mechanicName, DateTime bookingDate, int bookingId)
@@ -111,8 +131,7 @@ namespace DonaldsonMotors.API.Services
                 WebsiteUrl = _emailSettings.WebsiteUrl
             };
             // The path here matches the file name we defined
-            string htmlBody = await _razorLightEngine.CompileRenderAsync("Templates/Emails/TechnicianAssignedEmail.cshtml", viewModel);
-            await SendEmailAsync(toEmail, subject, htmlBody);
+            await SendTemplateAsync(toEmail, subject, "Templates/Emails/TechnicianAssignedEmail.cshtml", viewModel);
         }
 
         public async Task SendJobCompletedAwaitingPaymentAsync(string toEmail, string customerName, int bookingId, decimal totalAmount)
@@ -130,8 +149,7 @@ namespace DonaldsonMotors.API.Services
                 CompanyContactEmail = _emailSettings.FromAddress,
                 WebsiteUrl = _emailSettings.WebsiteUrl
             };
-            string htmlBody = await _razorLightEngine.CompileRenderAsync("Templates/Emails/JobCompletedEmail.cshtml", viewModel);
-            await SendEmailAsync(toEmail, subject, htmlBody);
+            await SendTemplateAsync(toEmail, subject, "Templates/Emails/JobCompletedEmail.cshtml", viewModel);
         }
 
         public async Task SendBookingCancelledAsync(string toEmail, string customerName, int bookingId, DateTime bookingDate, string? cancellationReason)
@@ -149,8 +167,7 @@ namespace DonaldsonMotors.API.Services
                 CompanyContactEmail = _emailSettings.FromAddress,
                 WebsiteUrl = _emailSettings.WebsiteUrl
             };
-            string htmlBody = await _razorLightEngine.CompileRenderAsync("Templates/Emails/BookingCancelledEmail.cshtml", viewModel);
-            await SendEmailAsync(toEmail, subject, htmlBody);
+            await SendTemplateAsync(toEmail, subject, "Templates/Emails/BookingCancelledEmail.cshtml", viewModel);
         }
 
 
