@@ -24,7 +24,7 @@ interface SupplierFormProps {
     isSubmitting: boolean;
 }
 
-type SupplierFormData = CreateSupplierPayload;
+type SupplierFormData = yup.InferType<typeof supplierSchema>;
 
 
 const SupplierForm: React.FC<SupplierFormProps> = ({ initialData, onSubmit, onCancel, isSubmitting }) => {
@@ -33,7 +33,7 @@ const SupplierForm: React.FC<SupplierFormProps> = ({ initialData, onSubmit, onCa
         handleSubmit,
         formState: { errors },
         reset,
-    } = useForm<SupplierFormData>({
+    } = useForm({
         resolver: yupResolver(supplierSchema),
         defaultValues: initialData ?
             { // Map Supplier to SupplierFormData (which is CreateSupplierPayload)

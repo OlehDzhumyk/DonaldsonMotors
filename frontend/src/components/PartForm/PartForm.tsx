@@ -26,7 +26,7 @@ interface PartFormProps {
 
 // For the form, we'll use CreatePartPayload as the base type for fields.
 // UpdatePartPayload might have some fields optional or missing (like initialStockLevel).
-type PartFormData = CreatePartPayload;
+type PartFormData = yup.InferType<typeof partSchema>;
 
 const PartForm: React.FC<PartFormProps> = ({ initialData, onSubmit, onCancel, isSubmitting, suppliers }) => {
     const {
@@ -34,7 +34,7 @@ const PartForm: React.FC<PartFormProps> = ({ initialData, onSubmit, onCancel, is
         handleSubmit,
         formState: { errors },
         reset,
-    } = useForm<PartFormData>({
+    } = useForm({
         resolver: yupResolver(partSchema),
         defaultValues: initialData ?
             { // Map Part to PartFormData (CreatePartPayload fields)

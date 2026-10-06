@@ -61,7 +61,7 @@ export interface Part {
 export interface CreatePartPayload {
     name: string;
     price: number;
-    costPrice?: number;
+    costPrice?: number | null;
     initialStockLevel: number; // Typically, you set initial stock on creation
     barcode?: string | null;
     supplierId: number; // A part must belong to a supplier
@@ -74,7 +74,7 @@ export interface CreatePartPayload {
 export interface UpdatePartPayload {
     name?: string;
     price?: number;
-    costPrice?: number;
+    costPrice?: number | null;
     barcode?: string | null;
     // supplierId is typically not changed this way, currentStockLevel is via a dedicated endpoint.
 }
