@@ -1,52 +1,51 @@
 import React from 'react';
-import './AboutUsPage.css';
+import { Link } from 'react-router-dom';
 
-const AboutUsPage: React.FC = () => {
-    return (
-        <div className="about-us-page">
-            <header className="page-header">
-                <h1>Quality Car Care You Can Trust</h1>
-            </header>
+const OPENING_HOURS = [
+    { days: 'Monday – Friday', hours: '09:00 – 17:00' },
+    { days: 'Lunch break', hours: '13:00 – 14:00' },
+    { days: 'Saturday – Sunday', hours: 'Closed' },
+];
 
-            <div className="main-content-wrapper">
-                <section className="info-section">
-                    <h2>What We Do</h2>
-                    <p>
-                        At Donaldson Motors, we are dedicated to providing top-tier, reliable automotive services. From routine maintenance like oil changes and MOT testing to complex engine repairs, our team of certified mechanics uses the latest technology to ensure your vehicle performs at its best. We pride ourselves on transparent communication and honest work.
-                    </p>
-
-                    <h2 style={{ marginTop: '40px' }}>Key Information</h2>
-                    <ul className="info-list">
-                        <li>
-                            <strong>Mon - Fri:</strong> 8:00 AM - 6:00 PM
-                        </li>
-                        <li>
-                            <strong>Saturday:</strong> 9:00 AM - 1:00 PM
-                        </li>
-                        <li>
-                            <strong>Sunday:</strong> Closed
-                        </li>
-                        <li style={{ paddingTop: '10px' }}>
-                            <strong>Payments:</strong> Credit/Debit Card, PayPal, Stripe
-                        </li>
-                    </ul>
-                </section>
-
-                <section className="map-section">
-                    <h2>Find Us</h2>
-                    {/* This is an embedded Google Map.
-          */}
-                    <iframe
-                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d71803.51864161988!2d-4.110531526437936!3d55.77353163351608!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x488841bae41341d1%3A0x838a54e994c55217!2sHamilton!5e0!3m2!1sen!2suk!4v1716624734568!5m2!1sen!2suk"
-                        allowFullScreen={true}
-                        loading="lazy"
-                        referrerPolicy="no-referrer-when-downgrade"
-                        title="Donaldson Motors Location"
-                    ></iframe>
-                </section>
+const AboutUsPage: React.FC = () => (
+    <div className="container page">
+        <div className="page-header">
+            <div>
+                <h1>Quality car care you can trust</h1>
+                <p className="subtitle">An independent garage in Hamilton, Scotland.</p>
             </div>
+            <Link to="/book" className="btn btn-primary">Book a service</Link>
         </div>
-    );
-};
+
+        <div className="grid grid-2" style={{ alignItems: 'start' }}>
+            <section className="card card-body stack">
+                <h2>What we do</h2>
+                <p className="muted">
+                    At Donaldson Motors we provide reliable servicing and repairs, from routine maintenance
+                    like oil changes to complex engine work. Our mechanics use up-to-date equipment, and we
+                    keep you informed by email at every step: booking, mechanic assigned, job finished and invoice.
+                </p>
+                <p className="muted">We pride ourselves on clear communication and honest work.</p>
+            </section>
+
+            <section className="card">
+                <div className="card-header"><h2>Opening hours</h2></div>
+                <table className="table">
+                    <tbody>
+                        {OPENING_HOURS.map(row => (
+                            <tr key={row.days}>
+                                <td>{row.days}</td>
+                                <td className="num">{row.hours}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+                <div className="card-footer" style={{ justifyContent: 'flex-start' }}>
+                    <span className="muted small">123 Garage Lane, Hamilton, Scotland · (012) 345-6789</span>
+                </div>
+            </section>
+        </div>
+    </div>
+);
 
 export default AboutUsPage;

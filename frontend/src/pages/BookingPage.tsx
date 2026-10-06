@@ -1,284 +1,188 @@
-// src/pages/BookingPage.tsx
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getAvailability } from '../api/scheduleService';
 import { getMyProfile } from '../api/userService';
 import { createBooking } from '../api/bookingService';
-import { getAllServiceTypes } from '../api/serviceTypeService';
-import type {UserProfile} from '../types/user';
-import type {ServiceType} from '../types/serviceType';
-import type {CreateBookingPayload} from '../types/booking';
+import { useServiceTypes } from '../hooks/useServiceTypes';
+import type { Vehicle } from '../types/user';
+import { formatDate, formatDateTime, formatHours, formatMoney, formatTime, getErrorMessage } from '../utils/format';
 import './BookingPage.css';
 
-interface GroupedSlot {
-    date: string;
-    times: { originalUtc: string; displayTime: string }[];
-}
+const DAYS_SHOWN = 14;
+
+const toIsoDate = (date: Date) => date.toISOString().slice(0, 10);
+const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+
+/** Groups UTC slot strings by local calendar day, keeping order. */
+const groupByDay = (slots: string[]) => {
+    const groups = new Map<string, string[]>();
+    for (const slot of slots) {
+        const key = new Date(slot).toDateString();
+        groups.set(key, [...(groups.get(key) ?? []), slot]);
+    }
+    return [...groups.values()];
+};
 
 const BookingPage: React.FC = () => {
     const navigate = useNavigate();
-    const today = new Date().toISOString().split('T')[0];
-    const oneWeekFromToday = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const [searchParams] = useSearchParams();
+    const { serviceTypes, error: servicesError } = useServiceTypes();
 
-    // Date and Slot states
-    const [startDate, setStartDate] = useState<string>(today);
-    const [endDate, setEndDate] = useState<string>(oneWeekFromToday);
-    const [groupedSlots, setGroupedSlots] = useState<GroupedSlot[]>([]);
-    const [isLoadingSlots, setIsLoadingSlots] = useState<boolean>(false);
+    const [vehicles, setVehicles] = useState<Vehicle[] | null>(null);
+    const [rangeStart, setRangeStart] = useState(() => new Date());
+    const [slots, setSlots] = useState<string[] | null>(null);
     const [slotsError, setSlotsError] = useState<string | null>(null);
 
-    // User Profile and Vehicle states
-    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-    const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(false);
-    const [profileError, setProfileError] = useState<string | null>(null);
+    const [serviceId, setServiceId] = useState<number | null>(() => Number(searchParams.get('service')) || null);
+    const [vehicleReg, setVehicleReg] = useState<string | null>(null);
+    const [slot, setSlot] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
 
-    // --- NEW: Service Types states ---
-    const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
-    const [isLoadingServiceTypes, setIsLoadingServiceTypes] = useState<boolean>(false);
-    const [serviceTypesError, setServiceTypesError] = useState<string | null>(null);
-
-    // Selections
-    const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-    const [selectedVehicleReg, setSelectedVehicleReg] = useState<string>('');
-    const [selectedServiceTypeId, setSelectedServiceTypeId] = useState<string>(''); // Store as string for <select> value
-
-    // Booking submission states
-    const [isSubmittingBooking, setIsSubmittingBooking] = useState<boolean>(false);
-    const [bookingSubmitError, setBookingSubmitError] = useState<string | null>(null);
-
-    // Fetch user profile (for vehicles) and Service Types on component mount
     useEffect(() => {
-        const loadInitialData = async () => {
-            setIsLoadingProfile(true);
-            setIsLoadingServiceTypes(true);
-            try {
-                const profileData = await getMyProfile();
-                setUserProfile(profileData);
-                if (profileData.vehicles && profileData.vehicles.length > 0) {
-                    setSelectedVehicleReg(profileData.vehicles[0].registrationNumber);
-                }
-            } catch (err) {
-                setProfileError('Failed to load your vehicles. Please try again.');
-                console.error("Error fetching profile:", err);
-            } finally {
-                setIsLoadingProfile(false);
-            }
-
-            try {
-                const types = await getAllServiceTypes();
-                setServiceTypes(types);
-            } catch (err) {
-                setServiceTypesError('Failed to load service types. Please try again.');
-                console.error("Error fetching service types:", err);
-            } finally {
-                setIsLoadingServiceTypes(false);
-            }
-        };
-        loadInitialData();
+        getMyProfile()
+            .then(profile => {
+                setVehicles(profile.vehicles);
+                setVehicleReg(current => current ?? profile.vehicles[0]?.registrationNumber ?? null);
+            })
+            .catch((err: unknown) => { setSubmitError(getErrorMessage(err, 'Could not load your vehicles.')); });
     }, []);
 
-    const groupAndFormatSlots = (slots: string[]): GroupedSlot[] => {
-        // ... (groupAndFormatSlots function - no change)
-        const grouped: { [key: string]: { originalUtc: string; displayTime: string }[] } = {};
-        slots.forEach(utcSlot => {
-            const localDate = new Date(utcSlot);
-            const dateKey = localDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-            const timeKey = localDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true });
-            if (!grouped[dateKey]) {
-                grouped[dateKey] = [];
-            }
-            grouped[dateKey].push({ originalUtc: utcSlot, displayTime: timeKey });
-        });
-        Object.keys(grouped).forEach(dateKey => {
-            grouped[dateKey].sort((a, b) => new Date(a.originalUtc).getTime() - new Date(b.originalUtc).getTime());
-        });
-        return Object.entries(grouped)
-            .map(([date, times]) => ({ date, times }))
-            .sort((a, b) => new Date(a.times[0].originalUtc).getTime() - new Date(b.times[0].originalUtc).getTime());
-    };
-
-    const handleFetchAvailability = async () => {
-        // ... (handleFetchAvailability function - no change)
-        if (!startDate || !endDate) {
-            setSlotsError('Please select both start and end dates.');
-            return;
-        }
-        if (new Date(startDate) > new Date(endDate)) {
-            setSlotsError('Start date cannot be after end date.');
-            return;
-        }
-        setIsLoadingSlots(true);
+    useEffect(() => {
+        let cancelled = false;
+        setSlots(null);
         setSlotsError(null);
-        setSelectedSlot(null);
-        setGroupedSlots([]);
+        getAvailability(toIsoDate(rangeStart), toIsoDate(addDays(rangeStart, DAYS_SHOWN)))
+            .then(result => { if (!cancelled) setSlots(result); })
+            .catch((err: unknown) => { if (!cancelled) setSlotsError(getErrorMessage(err, 'Could not load free slots.')); });
+        return () => { cancelled = true; };
+    }, [rangeStart]);
+
+    const days = useMemo(() => groupByDay(slots ?? []), [slots]);
+    const service = serviceTypes.find(s => s.id === serviceId);
+    const vehicle = vehicles?.find(v => v.registrationNumber === vehicleReg);
+    const isFirstRange = toIsoDate(rangeStart) <= toIsoDate(new Date());
+
+    const handleConfirm = async () => {
+        if (!service || !vehicle || !slot) return;
+        setIsSubmitting(true);
+        setSubmitError(null);
         try {
-            const rawSlots = await getAvailability(startDate, endDate);
-            if (rawSlots.length === 0) {
-                setSlotsError('No available slots found for the selected period.');
-            } else {
-                setGroupedSlots(groupAndFormatSlots(rawSlots));
-            }
-        } catch (err: any) {
-            const message = err.response?.data || err.message || 'Failed to fetch availability.';
-            setSlotsError(message);
-        } finally {
-            setIsLoadingSlots(false);
-        }
-    };
-
-    const handleBookingSubmit = async () => {
-        if (!selectedSlot || !selectedVehicleReg || !selectedServiceTypeId) {
-            setBookingSubmitError('Please ensure you have selected a time slot, vehicle, and service type.');
-            return;
-        }
-
-        // Create the payload matching the cURL request and updated CreateBookingPayload type
-        const bookingPayload: CreateBookingPayload = {
-            vehicleRegistrationNumber: selectedVehicleReg,
-            serviceTypeId: parseInt(selectedServiceTypeId),
-            slotStart: selectedSlot,
-        };
-
-        setIsSubmittingBooking(true);
-        setBookingSubmitError(null);
-
-        try {
-            const newBooking = await createBooking(bookingPayload); // createBooking from bookingService
-            console.log('Booking Created Successfully from Frontend:', newBooking);
-            alert(`Booking successfully created! Your booking ID is ${newBooking.id}.`);
-            navigate('/my-bookings');
-
-        } catch (err: any) {
-            let message = 'Failed to create booking. Please try again.';
-            if (err.response) {
-                if (err.response.status === 409) { // Example: SlotUnavailableException or similar conflict
-                    message = err.response.data?.message || 'The selected slot is no longer available or conflicts with another booking.';
-                } else if (err.response.data?.errors) { // ASP.NET Core validation errors
-                    message = Object.values(err.response.data.errors).flat().join(' ');
-                }
-                else {
-                    message = err.response.data?.message || err.response.data?.title || message;
-                }
-            } else {
-                message = err.message || message;
-            }
-            setBookingSubmitError(message);
-            console.error('Error creating booking from frontend:', err.response || err);
-        } finally {
-            setIsSubmittingBooking(false);
+            await createBooking({ serviceTypeId: service.id, vehicleRegistrationNumber: vehicle.registrationNumber, slotStart: slot });
+            void navigate('/my-bookings', { state: { justBooked: `${service.name} on ${formatDateTime(slot)}` } });
+        } catch (err) {
+            setSubmitError(getErrorMessage(err, 'Could not create the booking.'));
+            setIsSubmitting(false);
         }
     };
 
     return (
-        <div className="booking-page-container">
-            <h1>Book a Service Appointment</h1>
-
-            {/* Date range picker section ... no change */}
-            <div className="date-range-picker">
-                <div className="form-group">
-                    <label htmlFor="start-date">Start Date:</label>
-                    <input type="date" id="start-date" value={startDate} min={today} onChange={(e) => setStartDate(e.target.value)} />
+        <div className="container page">
+            <div className="page-header">
+                <div>
+                    <h1>Book a service</h1>
+                    <p className="subtitle">Choose a service, your car and a time. You'll get a confirmation email straight away.</p>
                 </div>
-                <div className="form-group">
-                    <label htmlFor="end-date">End Date:</label>
-                    <input type="date" id="end-date" value={endDate} min={startDate || today} onChange={(e) => setEndDate(e.target.value)} />
-                </div>
-                <button onClick={handleFetchAvailability} disabled={isLoadingSlots || isLoadingProfile || isLoadingServiceTypes} className="fetch-slots-btn">
-                    {isLoadingSlots ? 'Fetching Slots...' : 'Find Slots'}
-                </button>
             </div>
 
-            {slotsError && <p className="error-message-slots">{slotsError}</p>}
-            {profileError && <p className="error-message-slots">{profileError}</p>}
-            {serviceTypesError && <p className="error-message-slots">{serviceTypesError}</p>}
+            <div className="booking-layout">
+                <div className="stack">
+                    <section className="card">
+                        <div className="card-header"><h2><span className="step">1</span> Service</h2></div>
+                        <div className="card-body option-grid">
+                            {servicesError && <p className="alert alert-error">{servicesError}</p>}
+                            {serviceTypes.map(s => (
+                                <button key={s.id} type="button"
+                                        className={`option ${s.id === serviceId ? 'selected' : ''}`}
+                                        onClick={() => { setServiceId(s.id); }}>
+                                    <span className="option-title">{s.name}</span>
+                                    <span className="muted small">{s.description}</span>
+                                    <span className="option-meta">{formatMoney(s.price)} · {formatHours(s.durationHours)}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </section>
 
+                    <section className="card">
+                        <div className="card-header">
+                            <h2><span className="step">2</span> Vehicle</h2>
+                            <Link to="/profile" className="small">Manage vehicles</Link>
+                        </div>
+                        <div className="card-body option-grid">
+                            {vehicles?.length === 0 && (
+                                <p className="empty-state">You have no vehicles yet. <Link to="/profile">Add one</Link> to book.</p>
+                            )}
+                            {vehicles?.map(v => (
+                                <button key={v.registrationNumber} type="button"
+                                        className={`option option-row ${v.registrationNumber === vehicleReg ? 'selected' : ''}`}
+                                        onClick={() => { setVehicleReg(v.registrationNumber); }}>
+                                    <span className="plate">{v.registrationNumber}</span>
+                                    <span>
+                                        <span className="option-title">{v.make} {v.model}</span>
+                                        <span className="muted small"> · {v.year}</span>
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                    </section>
 
-            {/* Slots display section ... no change in structure */}
-            {groupedSlots.length > 0 && !selectedSlot && (
-                <div className="slots-selection-area">
-                    <h2>Select an Available Slot:</h2>
-                    {groupedSlots.map(group => (
-                        <div key={group.date} className="slot-date-group">
-                            <h3>{group.date}</h3>
-                            <div className="time-slots-grid">
-                                {group.times.map(timeSlot => (
-                                    <button
-                                        key={timeSlot.originalUtc}
-                                        onClick={() => { setSelectedSlot(timeSlot.originalUtc); setBookingSubmitError(null); }}
-                                        className={`time-slot-btn ${selectedSlot === timeSlot.originalUtc ? 'selected' : ''}`}
-                                        disabled={isLoadingSlots}
-                                    >
-                                        {timeSlot.displayTime}
-                                    </button>
+                    <section className="card">
+                        <div className="card-header">
+                            <h2><span className="step">3</span> Date and time</h2>
+                            <div className="row">
+                                <button className="btn btn-sm btn-secondary" disabled={isFirstRange}
+                                        onClick={() => { setRangeStart(addDays(rangeStart, -DAYS_SHOWN)); }}>← Earlier</button>
+                                <button className="btn btn-sm btn-secondary"
+                                        onClick={() => { setRangeStart(addDays(rangeStart, DAYS_SHOWN)); }}>Later →</button>
+                            </div>
+                        </div>
+                        <div className="card-body">
+                            {slotsError && <p className="alert alert-error">{slotsError}</p>}
+                            {slots === null && !slotsError && <p className="loading">Loading free slots…</p>}
+                            {slots?.length === 0 && <p className="empty-state">No free slots in these two weeks. Try later dates.</p>}
+                            <div className="day-list">
+                                {days.map(daySlots => (
+                                    <div key={daySlots[0]} className="day">
+                                        <span className="day-label">{formatDate(daySlots[0] ?? '')}</span>
+                                        <div className="time-chips">
+                                            {daySlots.map(s => (
+                                                <button key={s} type="button"
+                                                        className={`time-chip ${s === slot ? 'selected' : ''}`}
+                                                        onClick={() => { setSlot(s); }}>
+                                                    {formatTime(s)}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
                                 ))}
                             </div>
                         </div>
-                    ))}
+                    </section>
                 </div>
-            )}
 
-
-            {selectedSlot && (
-                <div className="booking-details-section">
-                    <h2>Confirm Your Booking</h2>
-                    <p><strong>Selected Slot:</strong> {new Date(selectedSlot).toLocaleString()}</p>
-
-                    {/* Vehicle Selection Dropdown ... no change in structure */}
-                    <div className="form-group">
-                        <label htmlFor="vehicle-select">Select Your Vehicle:</label>
-                        {isLoadingProfile && <p>Loading your vehicles...</p>}
-                        {!isLoadingProfile && userProfile && userProfile.vehicles.length > 0 ? (
-                            <select
-                                id="vehicle-select"
-                                value={selectedVehicleReg}
-                                onChange={(e) => setSelectedVehicleReg(e.target.value)}
-                                disabled={isSubmittingBooking}
-                            >
-                                {userProfile.vehicles.map(v => (
-                                    <option key={v.registrationNumber} value={v.registrationNumber}>
-                                        {v.make} {v.model} ({v.registrationNumber})
-                                    </option>
-                                ))}
-                            </select>
-                        ) : (
-                            !isLoadingProfile && <p>No vehicles found. <Link to="/profile">Add a vehicle to your profile first.</Link></p>
-                        )}
+                <aside className="card booking-summary">
+                    <div className="card-header"><h2>Summary</h2></div>
+                    <dl className="meta card-body">
+                        <dt>Service</dt><dd>{service?.name ?? <span className="muted">Not chosen</span>}</dd>
+                        <dt>Vehicle</dt><dd>{vehicle ? `${vehicle.make} ${vehicle.model}` : <span className="muted">Not chosen</span>}</dd>
+                        <dt>Time</dt><dd>{slot ? formatDateTime(slot) : <span className="muted">Not chosen</span>}</dd>
+                        <dt>Duration</dt><dd>{service ? formatHours(service.durationHours) : '—'}</dd>
+                    </dl>
+                    <div className="summary-total">
+                        <span>Price</span>
+                        <strong>{service ? formatMoney(service.price) : '—'}</strong>
                     </div>
-
-                    {/* --- UPDATED: Service Type Selection Dropdown --- */}
-                    <div className="form-group">
-                        <label htmlFor="service-type-select">Select Service Type:</label>
-                        {isLoadingServiceTypes && <p>Loading service types...</p>}
-                        {!isLoadingServiceTypes && serviceTypes.length > 0 ? (
-                            <select
-                                id="service-type-select"
-                                value={selectedServiceTypeId}
-                                onChange={(e) => setSelectedServiceTypeId(e.target.value)}
-                                disabled={isSubmittingBooking}
-                            >
-                                <option value="" disabled>-- Select a service --</option>
-                                {serviceTypes.map(st => (
-                                    <option key={st.id} value={st.id.toString()}>
-                                        {st.name} (approx. {st.durationHours} hrs, £{st.price.toFixed(2)})
-                                    </option>
-                                ))}
-                            </select>
-                        ) : (
-                            !isLoadingServiceTypes && <p>No service types available at the moment.</p>
-                        )}
+                    <div className="card-body">
+                        {submitError && <p className="alert alert-error" style={{ marginBottom: 12 }}>{submitError}</p>}
+                        <button className="btn btn-primary btn-lg btn-block"
+                                disabled={!service || !vehicle || !slot || isSubmitting}
+                                onClick={() => void handleConfirm()}>
+                            {isSubmitting ? 'Booking…' : 'Confirm booking'}
+                        </button>
+                        <p className="muted small" style={{ marginTop: 10 }}>Parts used during the job are added to the final invoice.</p>
                     </div>
-
-                    {bookingSubmitError && <p className="error-message-slots" style={{textAlign: 'center'}}>{bookingSubmitError}</p>}
-
-                    <button
-                        onClick={handleBookingSubmit}
-                        className="submit-booking-btn"
-                        disabled={!selectedVehicleReg || !selectedServiceTypeId || isSubmittingBooking || isLoadingProfile || isLoadingServiceTypes}
-                    >
-                        {isSubmittingBooking ? 'Submitting...' : 'Confirm Booking'}
-                    </button>
-                </div>
-            )}
+                </aside>
+            </div>
         </div>
     );
 };

@@ -1,392 +1,229 @@
-// src/pages/StockManagementPage.tsx
-import React, { useState, useEffect, useCallback } from 'react';
-
-// API Service Imports
-import {
-    getAllSuppliers,
-    createSupplier,
-    updateSupplier,
-    deleteSupplier
-} from '../api/supplierService';
-import {
-    getAllParts,
-    createPart,
-    updatePart,
-    deletePart,
-    updatePartStock
-} from '../api/partService';
-
-// Type Imports
-import type {
-    Supplier,
-    Part,
-    CreateSupplierPayload,
-    UpdateSupplierPayload,
-    CreatePartPayload,
-    UpdatePartPayload,
-    UpdateStockPayload
-} from '../types/inventory';
-
-// Component Imports
-import SupplierForm from '../components/SupplierForm/SupplierForm';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { getSuppliers, createSupplier, updateSupplier, deleteSupplier } from '../api/supplierService';
+import { getParts, createPart, updatePart, deletePart, updatePartStock } from '../api/partService';
+import type { CreatePartPayload, Part, Supplier, SupplierPayload, UpdateStockPayload } from '../types/inventory';
+import Modal from '../components/Modal';
 import PartForm from '../components/PartForm/PartForm';
-
-// CSS Import
+import SupplierForm from '../components/SupplierForm/SupplierForm';
+import StockChangeForm from '../components/StockChangeForm';
+import { formatMoney, getErrorMessage } from '../utils/format';
 import './StockManagementPage.css';
 
+const LOW_STOCK = 10;
+
+type Tab = 'parts' | 'suppliers';
+
+/** Which dialog is open, and for which record. */
+type Dialog =
+    | { kind: 'part'; part?: Part }
+    | { kind: 'stock'; part: Part }
+    | { kind: 'supplier'; supplier?: Supplier };
+
 const StockManagementPage: React.FC = () => {
-    // --- State for Suppliers ---
-    const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-    const [isLoadingSuppliers, setIsLoadingSuppliers] = useState<boolean>(true);
-    const [suppliersListError, setSuppliersListError] = useState<string | null>(null); // Error for fetching list
-    const [showSupplierForm, setShowSupplierForm] = useState<boolean>(false);
-    const [isSubmittingSupplier, setIsSubmittingSupplier] = useState<boolean>(false);
-    const [supplierFormError, setSupplierFormError] = useState<string | null>(null); // Error for form submission
-    const [supplierToEdit, setSupplierToEdit] = useState<Supplier | null>(null);
-
-    // --- State for Parts ---
+    const [tab, setTab] = useState<Tab>('parts');
     const [parts, setParts] = useState<Part[]>([]);
-    const [isLoadingParts, setIsLoadingParts] = useState<boolean>(true);
-    const [partsListError, setPartsListError] = useState<string | null>(null); // Error for fetching list
-    const [showPartForm, setShowPartForm] = useState<boolean>(false);
-    const [isSubmittingPart, setIsSubmittingPart] = useState<boolean>(false);
-    const [partFormError, setPartFormError] = useState<string | null>(null); // Error for form submission
-    const [partToEdit, setPartToEdit] = useState<Part | null>(null);
+    const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [pageError, setPageError] = useState<string | null>(null);
+    const [search, setSearch] = useState('');
+    const [dialog, setDialog] = useState<Dialog | null>(null);
+    const [dialogError, setDialogError] = useState<string | null>(null);
 
-    // State for indicating which item's action is currently processing (e.g., delete, stock update)
-    const [processingItemId, setProcessingItemId] = useState<number | null>(null);
-
-
-    // --- Data Fetching Callbacks ---
-    const fetchSuppliers = useCallback(async () => {
-        setIsLoadingSuppliers(true); // Indicate loading for the supplier list
+    const load = useCallback(async () => {
         try {
-            const data = await getAllSuppliers();
-            setSuppliers(data);
-            setSuppliersListError(null);
-        } catch (err: any) {
-            setSuppliersListError(err.response?.data?.message || err.message || 'Failed to fetch suppliers.');
+            const [loadedParts, loadedSuppliers] = await Promise.all([getParts(), getSuppliers()]);
+            setParts(loadedParts.sort((a, b) => a.name.localeCompare(b.name)));
+            setSuppliers(loadedSuppliers.sort((a, b) => a.name.localeCompare(b.name)));
+        } catch (err) {
+            setPageError(getErrorMessage(err, 'Could not load stock.'));
         } finally {
-            setIsLoadingSuppliers(false);
+            setIsLoading(false);
         }
     }, []);
 
-    const fetchParts = useCallback(async () => {
-        setIsLoadingParts(true); // Indicate loading for the parts list
+    useEffect(() => { void load(); }, [load]);
+
+    const openDialog = (next: Dialog | null) => {
+        setDialog(next);
+        setDialogError(null);
+    };
+
+    /** Runs a save from a dialog, then closes it and reloads, or shows the error inside the dialog. */
+    const saveFromDialog = async (action: () => Promise<unknown>, fallback: string) => {
         try {
-            const data = await getAllParts();
-            setParts(data);
-            setPartsListError(null);
-        } catch (err: any) {
-            setPartsListError(err.response?.data?.message || err.message || 'Failed to fetch parts.');
-        } finally {
-            setIsLoadingParts(false);
+            await action();
+            openDialog(null);
+            await load();
+        } catch (err) {
+            setDialogError(getErrorMessage(err, fallback));
         }
-    }, []);
-
-    // Initial data load
-    useEffect(() => {
-        fetchSuppliers();
-        fetchParts();
-    }, [fetchSuppliers, fetchParts]);
-
-    // --- Supplier Action Handlers ---
-    const handleOpenAddSupplierForm = () => {
-        setSupplierToEdit(null);
-        setShowSupplierForm(true);
-        setSupplierFormError(null);
-        setShowPartForm(false); // Close part form if open
     };
 
-    const handleOpenEditSupplierForm = (supplier: Supplier) => {
-        setSupplierToEdit(supplier);
-        setShowSupplierForm(true);
-        setSupplierFormError(null);
-        setShowPartForm(false); // Close part form if open
-    };
-
-    const handleCloseSupplierForm = () => {
-        setShowSupplierForm(false);
-        setSupplierToEdit(null);
-        setSupplierFormError(null);
-    };
-
-    const handleSupplierFormSubmit = async (formData: CreateSupplierPayload | UpdateSupplierPayload) => {
-        setIsSubmittingSupplier(true);
-        setSupplierFormError(null);
+    const removeItem = async (label: string, action: () => Promise<void>) => {
+        if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
+        setPageError(null);
         try {
-            if (supplierToEdit) {
-                await updateSupplier(supplierToEdit.id, formData as UpdateSupplierPayload);
-                alert('Supplier updated successfully!');
-            } else {
-                await createSupplier(formData as CreateSupplierPayload);
-                alert('Supplier added successfully!');
-            }
-            handleCloseSupplierForm();
-            await fetchSuppliers(); // Refresh list
-        } catch (err: any) {
-            const message = err.response?.data?.message ||
-                (err.response?.data?.errors ? Object.values(err.response.data.errors).flat().join(' ') : null) ||
-                err.message ||
-                (supplierToEdit ? 'Failed to update supplier.' : 'Failed to add supplier.');
-            setSupplierFormError(message);
-        } finally {
-            setIsSubmittingSupplier(false);
+            await action();
+            await load();
+        } catch (err) {
+            setPageError(getErrorMessage(err, `Could not delete ${label}.`));
         }
     };
 
-    const handleDeleteSupplier = async (supplierId: number, supplierName: string) => {
-        if (window.confirm(`Are you sure you want to delete supplier "${supplierName}" (ID: ${supplierId})? This action might affect associated parts.`)) {
-            setProcessingItemId(supplierId); // Indicate this item is being processed
-            setSuppliersListError(null); // Clear previous list errors
-            try {
-                await deleteSupplier(supplierId);
-                alert(`Supplier "${supplierName}" deleted successfully!`);
-                await fetchSuppliers(); // Refresh list
-            } catch (err: any) {
-                const message = err.response?.data?.message || err.message || `Failed to delete supplier ${supplierName}.`;
-                setSuppliersListError(message); // Show error related to the list
-                alert(`Error: ${message}`);
-            } finally {
-                setProcessingItemId(null);
-            }
-        }
+    const filteredParts = useMemo(() => {
+        const term = search.trim().toLowerCase();
+        return term
+            ? parts.filter(p => p.name.toLowerCase().includes(term) || p.supplierName.toLowerCase().includes(term))
+            : parts;
+    }, [parts, search]);
+
+    const totalUnits = parts.reduce((sum, p) => sum + p.currentStockLevel, 0);
+    const stockValue = parts.reduce((sum, p) => sum + p.currentStockLevel * p.costPrice, 0);
+    const lowStockCount = parts.filter(p => p.currentStockLevel < LOW_STOCK).length;
+
+    const savePart = (data: CreatePartPayload) => {
+        const editing = dialog?.kind === 'part' ? dialog.part : undefined;
+        return saveFromDialog(
+            () => (editing ? updatePart(editing.id, data) : createPart(data)),
+            'Could not save the part.');
     };
 
-    // --- Part Action Handlers ---
-    const handleOpenAddPartForm = () => {
-        setPartToEdit(null);
-        setShowPartForm(true);
-        setPartFormError(null);
-        setShowSupplierForm(false); // Close supplier form if open
+    const saveStock = (part: Part) => (data: UpdateStockPayload) =>
+        saveFromDialog(() => updatePartStock(part.id, data), 'Could not update the stock level.');
+
+    const saveSupplier = (data: SupplierPayload) => {
+        const editing = dialog?.kind === 'supplier' ? dialog.supplier : undefined;
+        return saveFromDialog(
+            () => (editing ? updateSupplier(editing.id, data) : createSupplier(data)),
+            'Could not save the supplier.');
     };
 
-    const handleOpenEditPartForm = (part: Part) => {
-        setPartToEdit(part);
-        setShowPartForm(true);
-        setPartFormError(null);
-        setShowSupplierForm(false); // Close supplier form if open
-    };
-
-    const handleClosePartForm = () => {
-        setShowPartForm(false);
-        setPartToEdit(null);
-        setPartFormError(null);
-    };
-
-    const handlePartFormSubmit = async (formData: CreatePartPayload | UpdatePartPayload) => {
-        setIsSubmittingPart(true);
-        setPartFormError(null);
-        try {
-            if (partToEdit) {
-                const { initialStockLevel, ...updateData } = formData as CreatePartPayload; // initialStockLevel not part of UpdatePartPayload
-                await updatePart(partToEdit.id, updateData as UpdatePartPayload);
-                alert('Part updated successfully!');
-            } else {
-                await createPart(formData as CreatePartPayload);
-                alert('Part added successfully!');
-            }
-            handleClosePartForm();
-            await fetchParts(); // Refresh list
-        } catch (err: any) {
-            const message = err.response?.data?.message ||
-                (err.response?.data?.errors ? Object.values(err.response.data.errors).flat().join(' ') : null) ||
-                err.message ||
-                (partToEdit ? 'Failed to update part.' : 'Failed to add part.');
-            setPartFormError(message);
-        } finally {
-            setIsSubmittingPart(false);
-        }
-    };
-
-    const handleDeletePart = async (partId: number, partName: string) => {
-        if (window.confirm(`Are you sure you want to delete part "${partName}" (ID: ${partId})?`)) {
-            setProcessingItemId(partId);
-            setPartsListError(null);
-            try {
-                await deletePart(partId);
-                alert(`Part "${partName}" deleted successfully!`);
-                await fetchParts();
-            } catch (err: any) {
-                const message = err.response?.data?.message || err.message || `Failed to delete part ${partName}.`;
-                setPartsListError(message);
-                alert(`Error: ${message}`);
-            } finally {
-                setProcessingItemId(null);
-            }
-        }
-    };
-
-    const handleUpdateStock = async (part: Part) => {
-        const changeStr = prompt(`Enter change in quantity for "${part.name}" (current: ${part.currentStockLevel}).\nUse positive for intake (e.g., 10), negative for dispatch (e.g., -5):`);
-        if (changeStr === null) return;
-
-        const changeInQuantity = parseInt(changeStr);
-        if (isNaN(changeInQuantity)) {
-            alert('Invalid quantity entered. Please enter a number.');
-            return;
-        }
-        if (changeInQuantity === 0) {
-            alert('No change in quantity entered.');
-            return;
-        }
-
-        const reason = prompt(`Reason for stock change for "${part.name}" (e.g., "Stock intake", "Used for Job #123", "Stock correction"):`);
-        if (reason === null) return; // User cancelled prompt for reason
-
-        setProcessingItemId(part.id);
-        setPartsListError(null);
-        const payload: UpdateStockPayload = { changeInQuantity, reason: reason || undefined }; // reason is optional
-        try {
-            await updatePartStock(part.id, payload);
-            alert(`Stock for "${part.name}" updated successfully!`);
-            await fetchParts(); // Refresh list
-        } catch (err: any) {
-            const message = err.response?.data?.message || err.message || `Failed to update stock for ${part.name}.`;
-            setPartsListError(message);
-            alert(`Error: ${message}`);
-        } finally {
-            setProcessingItemId(null);
-        }
-    };
-
-    // General disable flag for add buttons if any form is open or a list action is processing
-    const isAnyFormOpen = showSupplierForm || showPartForm;
-    const isAnyListActionProcessing = isSubmittingSupplier || isSubmittingPart || processingItemId !== null;
+    if (isLoading) return <p className="loading">Loading stock…</p>;
 
     return (
-        <div className="stock-management-page">
-            <h1>Stock & Suppliers Management</h1>
+        <div className="container page">
+            <div className="page-header">
+                <div>
+                    <h1>Stock & suppliers</h1>
+                    <p className="subtitle">Parts mechanics can use on jobs, and the suppliers they come from.</p>
+                </div>
+                <div className="page-header-actions">
+                    {tab === 'parts'
+                        ? <button className="btn btn-primary" onClick={() => { openDialog({ kind: 'part' }); }} disabled={suppliers.length === 0}>Add part</button>
+                        : <button className="btn btn-primary" onClick={() => { openDialog({ kind: 'supplier' }); }}>Add supplier</button>}
+                </div>
+            </div>
 
-            {/* Suppliers Section */}
-            <section className="page-section">
-                <h2>Suppliers</h2>
-                {!showSupplierForm && (
-                    <div className="action-button-group">
-                        <button
-                            onClick={handleOpenAddSupplierForm}
-                            className="add-new-btn"
-                            disabled={isAnyFormOpen || isAnyListActionProcessing}
-                        >
-                            + Add New Supplier
-                        </button>
+            <div className="stats">
+                <div className="card stat"><span className="stat-label">Parts</span><span className="stat-value">{parts.length}</span></div>
+                <div className="card stat"><span className="stat-label">Units in stock</span><span className="stat-value">{totalUnits}</span></div>
+                <div className="card stat"><span className="stat-label">Stock value at cost</span><span className="stat-value">{formatMoney(stockValue)}</span></div>
+                <div className="card stat">
+                    <span className="stat-label">Low stock (under {LOW_STOCK})</span>
+                    <span className={`stat-value ${lowStockCount > 0 ? 'stat-warning' : ''}`}>{lowStockCount}</span>
+                </div>
+            </div>
+
+            {pageError && <p className="alert alert-error" style={{ marginBottom: 16 }}>{pageError}</p>}
+
+            <div className="card">
+                <div className="card-header">
+                    <div className="tabs">
+                        <button className={tab === 'parts' ? 'active' : ''} onClick={() => { setTab('parts'); }}>Parts</button>
+                        <button className={tab === 'suppliers' ? 'active' : ''} onClick={() => { setTab('suppliers'); }}>Suppliers</button>
+                    </div>
+                    {tab === 'parts' && (
+                        <input className="table-search" type="search" placeholder="Search parts or suppliers"
+                               value={search} onChange={(e) => { setSearch(e.target.value); }} />
+                    )}
+                </div>
+
+                {tab === 'parts' && (
+                    <div className="table-wrap">
+                        <table className="table">
+                            <thead>
+                                <tr>
+                                    <th>Part</th><th>Supplier</th>
+                                    <th className="num">Cost</th><th className="num">Price</th><th className="num">In stock</th><th />
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredParts.map(part => (
+                                    <tr key={part.id}>
+                                        <td>
+                                            <strong>{part.name}</strong>
+                                            {part.barcode && <div className="muted mono">{part.barcode}</div>}
+                                        </td>
+                                        <td className="muted">{part.supplierName}</td>
+                                        <td className="num muted">{formatMoney(part.costPrice)}</td>
+                                        <td className="num">{formatMoney(part.price)}</td>
+                                        <td className="num">
+                                            {part.currentStockLevel < LOW_STOCK
+                                                ? <span className="badge badge-pending">{part.currentStockLevel} low</span>
+                                                : part.currentStockLevel}
+                                        </td>
+                                        <td className="actions">
+                                            <button className="btn btn-sm btn-secondary" onClick={() => { openDialog({ kind: 'stock', part }); }}>Adjust stock</button>
+                                            <button className="btn btn-sm btn-secondary" onClick={() => { openDialog({ kind: 'part', part }); }}>Edit</button>
+                                            <button className="btn btn-sm btn-danger" onClick={() => void removeItem(part.name, () => deletePart(part.id))}>Delete</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {filteredParts.length === 0 && <div className="card-body"><p className="empty-state">No parts found.</p></div>}
                     </div>
                 )}
-                {showSupplierForm && (
-                    <SupplierForm
-                        initialData={supplierToEdit}
-                        onSubmit={handleSupplierFormSubmit}
-                        onCancel={handleCloseSupplierForm}
-                        isSubmitting={isSubmittingSupplier}
-                    />
-                )}
-                {showSupplierForm && supplierFormError &&
-                    <p className="error-text form-error">{supplierFormError}</p>}
-                {!showSupplierForm && suppliersListError &&
-                    <p className="error-text">{suppliersListError}</p>}
 
-                {isLoadingSuppliers && <p className="loading-text">Loading suppliers...</p>}
-                {!isLoadingSuppliers && !suppliersListError && (
-                    <ul className="item-list" style={{ marginTop: showSupplierForm ? '20px' : '0' }}>
-                        {suppliers.length === 0 && !showSupplierForm && <p>No suppliers found. Click "Add New Supplier" to begin.</p>}
-                        {suppliers.map(supplier => (
-                            <li key={supplier.id}>
-                                <div>
-                                    <strong>{supplier.name}</strong>
-                                    <br />
-                                    <small>Email: {supplier.email} | Phone: {supplier.telephone || 'N/A'}</small>
-                                    <br/>
-                                    <small>Address: {supplier.addressLine1}, {supplier.postcode}</small>
-                                </div>
-                                <div className="item-actions">
-                                    <button
-                                        onClick={() => handleOpenEditSupplierForm(supplier)}
-                                        className="edit-btn"
-                                        disabled={isAnyFormOpen || processingItemId === supplier.id || isSubmittingSupplier}
-                                    >
-                                        Edit
-                                    </button>
-                                    <button
-                                        onClick={() => handleDeleteSupplier(supplier.id, supplier.name)}
-                                        className="delete-btn"
-                                        disabled={isAnyFormOpen || processingItemId === supplier.id || isSubmittingSupplier}
-                                    >
-                                        {processingItemId === supplier.id && !isSubmittingSupplier ? 'Deleting...' : 'Delete'}
-                                    </button>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </section>
-
-            {/* Parts Section */}
-            <section className="page-section">
-                <h2>Parts / Stock</h2>
-                {!showPartForm && (
-                    <div className="action-button-group">
-                        <button
-                            onClick={handleOpenAddPartForm}
-                            className="add-new-btn"
-                            disabled={isAnyFormOpen || isAnyListActionProcessing}
-                        >
-                            + Add New Part
-                        </button>
+                {tab === 'suppliers' && (
+                    <div className="table-wrap">
+                        <table className="table">
+                            <thead>
+                                <tr><th>Supplier</th><th>Contact</th><th>Address</th><th className="num">Parts</th><th /></tr>
+                            </thead>
+                            <tbody>
+                                {suppliers.map(supplier => (
+                                    <tr key={supplier.id}>
+                                        <td><strong>{supplier.name}</strong></td>
+                                        <td>
+                                            <div>{supplier.email ?? '—'}</div>
+                                            <div className="muted small">{supplier.telephone ?? 'No phone'}</div>
+                                        </td>
+                                        <td className="muted">
+                                            {[supplier.addressLine1, supplier.addressLine2, supplier.postcode].filter(Boolean).join(', ')}
+                                        </td>
+                                        <td className="num">{parts.filter(p => p.supplierId === supplier.id).length}</td>
+                                        <td className="actions">
+                                            <button className="btn btn-sm btn-secondary" onClick={() => { openDialog({ kind: 'supplier', supplier }); }}>Edit</button>
+                                            <button className="btn btn-sm btn-danger" onClick={() => void removeItem(supplier.name, () => deleteSupplier(supplier.id))}>Delete</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {suppliers.length === 0 && <div className="card-body"><p className="empty-state">No suppliers yet.</p></div>}
                     </div>
                 )}
-                {showPartForm && (
-                    <PartForm
-                        initialData={partToEdit}
-                        onSubmit={handlePartFormSubmit}
-                        onCancel={handleClosePartForm}
-                        isSubmitting={isSubmittingPart}
-                        suppliers={suppliers} // Pass the loaded suppliers
-                    />
-                )}
-                {showPartForm && partFormError &&
-                    <p className="error-text form-error">{partFormError}</p>}
-                {!showPartForm && partsListError &&
-                    <p className="error-text">{partsListError}</p>}
+            </div>
 
-                {isLoadingParts && <p className="loading-text">Loading parts...</p>}
-                {!isLoadingParts && !partsListError && (
-                    <ul className="item-list" style={{ marginTop: showPartForm ? '20px' : '0' }}>
-                        {parts.length === 0 && !showPartForm && <p>No parts found. Click "Add New Part" to begin.</p>}
-                        {parts.map(part => (
-                            <li key={part.id}>
-                                <div>
-                                    <strong>{part.name}</strong> (Price: £{part.price.toFixed(2)}, Stock: {part.currentStockLevel})
-                                    <br />
-                                    <small>Supplier: {part.supplierName || `ID: ${part.supplierId}`} | Barcode: {part.barcode || 'N/A'}</small>
-                                </div>
-                                <div className="item-actions">
-                                    <button
-                                        onClick={() => handleUpdateStock(part)}
-                                        className="stock-btn"
-                                        disabled={isAnyFormOpen || processingItemId === part.id || isSubmittingPart}
-                                    >
-                                        {processingItemId === part.id && !isSubmittingPart ? '...' : 'Update Stock'}
-                                    </button>
-                                    <button
-                                        onClick={() => handleOpenEditPartForm(part)}
-                                        className="edit-btn"
-                                        disabled={isAnyFormOpen || processingItemId === part.id || isSubmittingPart}
-                                    >
-                                        Edit Info
-                                    </button>
-                                    <button
-                                        onClick={() => handleDeletePart(part.id, part.name)}
-                                        className="delete-btn"
-                                        disabled={isAnyFormOpen || processingItemId === part.id || isSubmittingPart}
-                                    >
-                                        {processingItemId === part.id && !isSubmittingPart ? '...' : 'Delete'}
-                                    </button>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </section>
+            {dialog?.kind === 'part' && (
+                <Modal title={dialog.part ? `Edit ${dialog.part.name}` : 'Add a part'} onClose={() => { openDialog(null); }}>
+                    <PartForm part={dialog.part} suppliers={suppliers} onSubmit={savePart}
+                              onCancel={() => { openDialog(null); }} error={dialogError} />
+                </Modal>
+            )}
+            {dialog?.kind === 'stock' && (
+                <Modal title="Adjust stock" onClose={() => { openDialog(null); }}>
+                    <StockChangeForm part={dialog.part} onSubmit={saveStock(dialog.part)}
+                                     onCancel={() => { openDialog(null); }} error={dialogError} />
+                </Modal>
+            )}
+            {dialog?.kind === 'supplier' && (
+                <Modal title={dialog.supplier ? `Edit ${dialog.supplier.name}` : 'Add a supplier'} onClose={() => { openDialog(null); }}>
+                    <SupplierForm supplier={dialog.supplier} onSubmit={saveSupplier}
+                                  onCancel={() => { openDialog(null); }} error={dialogError} />
+                </Modal>
+            )}
         </div>
     );
 };

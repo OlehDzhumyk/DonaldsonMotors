@@ -1,14 +1,16 @@
-// src/types/auth.ts
+import type { Role } from '../utils/roles';
+
 export interface LoginCredentials {
     email: string;
     password: string;
 }
 
+/** The logged-in user as returned by /api/auth/login and /api/auth/register. */
 export interface User {
     token: string;
     email: string;
-    role: 'Manager' | 'Mechanic' | 'StockController' | 'AccountsClerk' | 'Customer';
-    expiresAt?: string;
+    role: Role;
+    expiresAt: string;
 }
 
 export interface AuthState {
@@ -21,13 +23,10 @@ export interface RegisterPayload {
     fullName: string;
     email: string;
     password: string;
-    confirmPassword: string;
 }
 
-export interface RegisterStaffPayload {
-    fullName: string;
-    email: string;
-    password: string;
-    confirmPassword: string;
-    role: 'Mechanic' | 'StockController' | 'AccountsClerk';
+export type StaffRole = 'Mechanic' | 'StockController' | 'AccountsClerk';
+
+export interface RegisterStaffPayload extends RegisterPayload {
+    role: StaffRole;
 }

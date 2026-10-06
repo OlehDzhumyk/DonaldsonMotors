@@ -1,91 +1,96 @@
-// src/pages/LoginPage.tsx
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import type {LoginCredentials, User} from '../types/auth';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks/reduxHooks';
 import { loginUser } from '../app/authSlice';
-import { useNavigate, Link } from 'react-router-dom';
-import './LoginPage.css';
-import {Roles} from "../utils/roles.ts";
+import { HOME_BY_ROLE } from '../utils/roles';
+import './AuthPage.css';
 
-const schema = yup.object().shape({
-    email: yup.string().email('Must be a valid email').required('Email is required'),
+const schema = yup.object({
+    email: yup.string().email('Enter a valid email').required('Email is required'),
     password: yup.string().required('Password is required'),
 });
+
+type LoginForm = yup.InferType<typeof schema>;
+
+// Accounts created by the API when SeedDemoData is on (the default in docker-compose)
+const DEMO_ACCOUNTS = [
+    { role: 'Customer', email: 'customer@donaldson.com' },
+    { role: 'Manager', email: 'manager@donaldson.com' },
+    { role: 'Mechanic', email: 'mechanic@donaldson.com' },
+    { role: 'Stock controller', email: 'stock@donaldson.com' },
+    { role: 'Accounts clerk', email: 'accounts@donaldson.com' },
+];
+const DEMO_PASSWORD = 'Password123!';
 
 const LoginPage: React.FC = () => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
-    const { status, error } = useAppSelector((state) => state.auth); // error is now string | null
-
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-    } = useForm<LoginCredentials>({
+    const { status, error } = useAppSelector((state) => state.auth);
+    const { register, handleSubmit, setValue, formState: { errors } } = useForm<LoginForm>({
         resolver: yupResolver(schema),
     });
 
-    const onSubmit = (data: LoginCredentials) => {
-        dispatch(loginUser(data))
-            .unwrap()
-            .then((loggedInUser: User) => { // loginUser thunk повертає об'єкт User
-                // Redirect based on role
-                switch (loggedInUser.role) {
-                    case Roles.Manager:
-                        navigate('/dashboard', { replace: true });
-                        break;
-                    case Roles.Customer:
-                        navigate('/my-bookings', { replace: true });
-                        break;
-                    case Roles.Mechanic:
-                        navigate('/my-jobs', { replace: true });
-                        break;
-                    // Add cases for StockController, AccountsClerk if they have specific pages
-                    default:
-                        navigate('/profile', { replace: true }); // Default for other roles or if no specific page
-                }
-            })
-            .catch(() => {
-                // Помилка вже обробляється в authSlice і відображається через стан 'error'
-                console.error("Login attempt failed on page!");
-            });
+    const onSubmit = async (data: LoginForm) => {
+        const result = await dispatch(loginUser(data));
+        if (loginUser.fulfilled.match(result)) {
+            void navigate(HOME_BY_ROLE[result.payload.role], { replace: true });
+        }
+    };
+
+    const fillDemo = (email: string) => {
+        setValue('email', email);
+        setValue('password', DEMO_PASSWORD);
     };
 
     return (
-        <div className="login-page-container">
-            <div className="login-form-card">
-                <h2>Welcome Back!</h2>
-                <form onSubmit={handleSubmit(onSubmit)}>
-                    <div className="form-group">
+        <div className="auth-page">
+            <div className="card card-body auth-card">
+                <h1>Log in</h1>
+                <p className="subtitle">Welcome back to Donaldson Motors.</p>
+                <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} noValidate>
+                    <div className="field">
                         <label htmlFor="email">Email</label>
-                        <input id="email" type="email" {...register('email')} />
-                        {errors.email && <p className="error-message">{errors.email.message}</p>}
+                        <input id="email" type="email" autoComplete="email" {...register('email')} />
+                        {errors.email && <p className="field-error">{errors.email.message}</p>}
                     </div>
-
-                    <div className="form-group">
+                    <div className="field">
                         <label htmlFor="password">Password</label>
-                        <input id="password" type="password" {...register('password')} />
-                        {errors.password && <p className="error-message">{errors.password.message}</p>}
+                        <input id="password" type="password" autoComplete="current-password" {...register('password')} />
+                        {errors.password && <p className="field-error">{errors.password.message}</p>}
                     </div>
 
-                    {/* Simplified error display */}
-                    {status === 'failed' && error && (
-                        <div className="login-error">
-                            {error} {/* error is now guaranteed to be a string if this block renders */}
-                        </div>
-                    )}
+                    {status === 'failed' && error && <p className="alert alert-error" style={{ marginBottom: 16 }}>{error}</p>}
 
-                    <button type="submit" className="submit-button" disabled={status === 'loading'}>
-                        {status === 'loading' ? 'Logging in...' : 'Login'}
+                    <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={status === 'loading'}>
+                        {status === 'loading' ? 'Logging in…' : 'Log in'}
                     </button>
-
-                    <p className="register-link">
-                        Don't have an account? <Link to="/register">Register here</Link>
-                    </p>
                 </form>
+                <p className="auth-switch">No account yet? <Link to="/register">Create one</Link></p>
+            </div>
+
+            <div className="card demo-card">
+                <div className="card-header">
+                    <div>
+                        <h2>Demo accounts</h2>
+                        <p className="muted small">Click one to fill the form. Password: {DEMO_PASSWORD}</p>
+                    </div>
+                </div>
+                <ul>
+                    {DEMO_ACCOUNTS.map(account => (
+                        <li key={account.email}>
+                            <button type="button" onClick={() => { fillDemo(account.email); }}>
+                                <span>
+                                    <span className="demo-role">{account.role}</span><br />
+                                    <span className="demo-email">{account.email}</span>
+                                </span>
+                                <span className="muted">→</span>
+                            </button>
+                        </li>
+                    ))}
+                </ul>
             </div>
         </div>
     );

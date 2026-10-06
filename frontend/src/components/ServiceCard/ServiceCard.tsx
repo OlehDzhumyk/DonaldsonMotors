@@ -1,24 +1,23 @@
-// src/components/ServiceCard/ServiceCard.tsx
 import React from 'react';
 import { Link } from 'react-router-dom';
-import type {Service} from '../../api/mockData'; // Import the type
+import type { ServiceType } from '../../types/serviceType';
+import { formatHours, formatMoney } from '../../utils/format';
 import './ServiceCard.css';
 
-interface ServiceCardProps {
-    service: Service;
-}
-
-const ServiceCard: React.FC<ServiceCardProps> = ({ service }) => {
-    return (
-        <div className="service-card">
-            <div className="service-icon">{service.icon}</div>
-            <h3>{service.title}</h3>
-            <p>{service.description}</p>
-            <Link to={`/services/${service.id}`} className="learn-more-btn">
-                Learn More
-            </Link>
+const ServiceCard: React.FC<{ service: ServiceType }> = ({ service }) => (
+    <article className="card service-card">
+        <div className="card-body">
+            <h3>{service.name}</h3>
+            <p className="muted">{service.description}</p>
         </div>
-    );
-};
+        <div className="service-card-footer">
+            <div>
+                <span className="service-price">{formatMoney(service.price)}</span>
+                <span className="muted small"> · {formatHours(service.durationHours)}</span>
+            </div>
+            <Link to={`/book?service=${String(service.id)}`} className="btn btn-sm btn-secondary">Book</Link>
+        </div>
+    </article>
+);
 
 export default ServiceCard;

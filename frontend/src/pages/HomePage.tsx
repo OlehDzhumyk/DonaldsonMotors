@@ -1,106 +1,68 @@
-// src/pages/HomePage.tsx
 import React from 'react';
 import { Link } from 'react-router-dom';
+import ServiceCard from '../components/ServiceCard/ServiceCard';
+import { useServiceTypes } from '../hooks/useServiceTypes';
+import './HomePage.css';
 
-// Simple inline styles. Consider moving to a separate CSS file for larger projects.
-const styles: { [key: string]: React.CSSProperties } = {
-    // Hero section with blue background
-    hero: {
-        textAlign: 'center',
-        padding: '100px 20px',
-        backgroundColor: '#005A9C', // Royal Blue
-        color: 'white',
-    },
-    title: {
-        fontSize: '3rem',
-        fontWeight: 'bold',
-        marginBottom: '1rem',
-    },
-    subtitle: {
-        fontSize: '1.5rem',
-        marginBottom: '2rem',
-        maxWidth: '600px',
-        margin: '0 auto 3rem auto',
-        opacity: 0.9,
-    },
-    ctaButton: {
-        backgroundColor: 'white',
-        color: '#005A9C',
-        padding: '15px 35px',
-        border: 'none',
-        borderRadius: '50px', // Pill-shaped button
-        textDecoration: 'none',
-        fontWeight: 'bold',
-        fontSize: '1.1rem',
-        cursor: 'pointer',
-        transition: 'transform 0.2s ease',
-    },
-    // Services section with white background
-    servicesSection: {
-        padding: '80px 20px',
-        textAlign: 'center',
-        backgroundColor: '#ffffff', // White background
-        color: '#333', // Dark text
-    },
-    sectionTitle: {
-        fontSize: '2.5rem',
-        marginBottom: '4rem',
-    },
-    servicesGrid: {
-        display: 'flex',
-        justifyContent: 'center',
-        gap: '30px',
-        flexWrap: 'wrap',
-        maxWidth: '1200px',
-        margin: '0 auto',
-    },
-    serviceCard: {
-        backgroundColor: '#f9f9f9',
-        padding: '30px',
-        borderRadius: '10px',
-        boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-        width: '300px',
-        textAlign: 'left',
-    },
-    serviceCardTitle: {
-        fontSize: '1.5rem',
-        marginBottom: '1rem',
-        color: '#005A9C',
-    },
-};
+const STEPS = [
+    { title: 'Pick a service', text: 'Choose what your car needs and see the price up front.' },
+    { title: 'Choose a time', text: 'Free slots are shown for the next two weeks.' },
+    { title: 'Get updates by email', text: 'Confirmation, mechanic assigned, job done and a paid invoice.' },
+];
 
 const HomePage: React.FC = () => {
-    // Example services data
-    const services = [
-        { title: "Engine Diagnostics", description: "State-of-the-art equipment to diagnose and fix engine issues." },
-        { title: "Oil & Filter Change", description: "Keep your engine running smoothly with regular oil changes." },
-        { title: "Tyres & Brakes", description: "Full tyre and brake inspection, repair, and replacement services." },
-    ];
+    const { serviceTypes, isLoading, error } = useServiceTypes();
 
     return (
-        <div>
-            {/* Hero Section */}
-            <section style={styles.hero}>
-                <h1 style={styles.title}>Your Trusted Partner in Car Care</h1>
-                <p style={styles.subtitle}>Efficient and trustworthy service, from an oil change to an engine repair.</p>
-                <Link to="/book" style={styles.ctaButton} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}>
-                    Book a Service
-                </Link>
-            </section>
-
-            {/* Services Section */}
-            <section style={styles.servicesSection}>
-                <h2 style={styles.sectionTitle}>Our Core Services</h2>
-                <div style={styles.servicesGrid}>
-                    {services.map((service, index) => (
-                        <div key={index} style={styles.serviceCard}>
-                            <h3 style={styles.serviceCardTitle}>{service.title}</h3>
-                            <p>{service.description}</p>
+        <>
+            <section className="hero">
+                <div className="container hero-inner">
+                    <div className="hero-copy">
+                        <span className="hero-eyebrow">Independent garage · Hamilton</span>
+                        <h1>Book your car service online in under a minute.</h1>
+                        <p>
+                            From an oil change to a full annual service. Pick a time that suits you and
+                            follow the job from booking to invoice.
+                        </p>
+                        <div className="row">
+                            <Link to="/book" className="btn btn-lg btn-primary">Book a service</Link>
+                            <Link to="/services" className="btn btn-lg hero-btn-outline">See prices</Link>
                         </div>
-                    ))}
+                    </div>
+
+                    <div className="card hero-steps">
+                        <div className="card-header"><h2>How booking works</h2></div>
+                        <ol className="steps">
+                            {STEPS.map((step, index) => (
+                                <li key={step.title}>
+                                    <span className="step-number">{index + 1}</span>
+                                    <div>
+                                        <h3>{step.title}</h3>
+                                        <p className="muted small">{step.text}</p>
+                                    </div>
+                                </li>
+                            ))}
+                        </ol>
+                    </div>
                 </div>
             </section>
-        </div>
+
+            <section className="container page">
+                <div className="page-header">
+                    <div>
+                        <h2 className="section-title">Services and prices</h2>
+                        <p className="subtitle">Prices are for the service itself. Any parts used are added to the final invoice.</p>
+                    </div>
+                    <Link to="/services">All services →</Link>
+                </div>
+
+                {isLoading && <p className="loading">Loading services…</p>}
+                {error && <p className="alert alert-error">{error}</p>}
+                <div className="grid grid-3">
+                    {serviceTypes.slice(0, 3).map(service => <ServiceCard key={service.id} service={service} />)}
+                </div>
+            </section>
+        </>
     );
 };
 

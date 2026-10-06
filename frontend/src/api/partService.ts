@@ -1,65 +1,26 @@
 import apiClient from './apiClient';
-import type {Part, CreatePartPayload, UpdatePartPayload, UpdateStockPayload} from '../types/inventory';
+import type { Part, CreatePartPayload, UpdatePartPayload, UpdateStockPayload } from '../types/inventory';
 
-const BASE_URL = '/parts'; // API base path for parts
-
-/**
- * Fetches all parts, optionally filtered by searchTerm or supplierId.
- * GET /api/Parts
- */
-export const getAllParts = async (searchTerm?: string, supplierId?: number): Promise<Part[]> => {
-    const response = await apiClient.get<Part[]>(BASE_URL, {
-        params: { searchTerm, supplierId }
-    });
-    return response.data;
+export const getParts = async (searchTerm?: string): Promise<Part[]> => {
+    const { data } = await apiClient.get<Part[]>('/parts', { params: { searchTerm } });
+    return data;
 };
 
-/**
- * Fetches a single part by its ID.
- * GET /api/Parts/{id}
- */
-export const getPartById = async (partId: number): Promise<Part> => {
-    const response = await apiClient.get<Part>(`${BASE_URL}/${partId}`);
-    return response.data;
-};
-
-/**
- * Creates a new part.
- * POST /api/Parts (assuming this endpoint exists)
- */
 export const createPart = async (payload: CreatePartPayload): Promise<Part> => {
-    // Assuming API returns the created part object.
-    const response = await apiClient.post<Part>(BASE_URL, payload);
-    return response.data;
+    const { data } = await apiClient.post<Part>('/parts', payload);
+    return data;
 };
 
-/**
- * Updates an existing part.
- * PUT /api/Parts/{id}
- */
-export const updatePart = async (partId: number, payload: UpdatePartPayload): Promise<Part> => {
-    // Assuming API returns the updated part. If it returns 204 No Content, change Promise<void>.
-    const response = await apiClient.put<Part>(`${BASE_URL}/${partId}`, payload);
-    return response.data;
+export const updatePart = async (id: number, payload: UpdatePartPayload): Promise<Part> => {
+    const { data } = await apiClient.put<Part>(`/parts/${String(id)}`, payload);
+    return data;
 };
 
-/**
- * Updates the stock level of a specific part.
- * PATCH /api/Parts/{id}/stock
- */
-export const updatePartStock = async (partId: number, payload: UpdateStockPayload): Promise<Part> => {
-    // Assuming API returns the updated part with new stock level.
-    const response = await apiClient.patch<Part>(`${BASE_URL}/${partId}/stock`, payload);
-    return response.data;
+export const updatePartStock = async (id: number, payload: UpdateStockPayload): Promise<Part> => {
+    const { data } = await apiClient.patch<Part>(`/parts/${String(id)}/stock`, payload);
+    return data;
 };
 
-/**
- * Deletes a part by its ID.
- * DELETE /api/Parts/{id}
- */
-export const deletePart = async (partId: number): Promise<void> => {
-    await apiClient.delete(`${BASE_URL}/${partId}`);
+export const deletePart = async (id: number): Promise<void> => {
+    await apiClient.delete(`/parts/${String(id)}`);
 };
-
-// searchParts can reuse getAllParts as it supports searchTerm
-export const searchParts = getAllParts;

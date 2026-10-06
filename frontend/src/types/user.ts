@@ -1,4 +1,3 @@
-
 export interface Vehicle {
     registrationNumber: string;
     make: string;
@@ -7,13 +6,7 @@ export interface Vehicle {
     mileage: number;
 }
 
-export interface VehiclePayload {
-    registrationNumber: string; // This will be the same for "update"
-    make: string;
-    model: string;
-    year: number;
-    mileage: number;
-}
+export type VehiclePayload = Vehicle;
 
 export interface UserProfile {
     id: number;

@@ -1,139 +1,82 @@
-// src/components/PartForm/PartForm.tsx
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import type {CreatePartPayload, UpdatePartPayload, Part, Supplier} from '../../types/inventory';
-import './PartForm.css';
+import type { CreatePartPayload, Part, Supplier } from '../../types/inventory';
+import { money, optionalText } from '../../utils/validation';
 
-// Yup schema for part validation
-const partSchema = yup.object().shape({
-    name: yup.string().required('Part name is required').min(3, 'Name too short'),
-    price: yup.number().typeError('Price must be a number').required('Price is required').min(0, 'Price cannot be negative'),
-    costPrice: yup.number().typeError('Cost price must be a number').optional().min(0, 'Cost price cannot be negative').nullable(),
-    initialStockLevel: yup.number().typeError('Initial stock must be a number').required('Initial stock is required').integer('Stock must be an integer').min(0, 'Stock cannot be negative'),
-    barcode: yup.string().optional().nullable(),
-    supplierId: yup.number().typeError('Supplier ID must be a number').required('Supplier is required'),
+const schema = yup.object({
+    name: yup.string().required('Name is required').min(3, 'At least 3 characters').max(100),
+    supplierId: yup.number().typeError('Choose a supplier').required('Choose a supplier'),
+    price: money('Selling price'),
+    costPrice: money('Cost price'),
+    initialStockLevel: yup.number().typeError('Enter a number').required().integer('Whole units only').min(0, 'Cannot be negative'),
+    barcode: optionalText(50),
 });
 
 interface PartFormProps {
-    initialData?: Part | null; // For pre-filling in edit mode
-    onSubmit: (data: CreatePartPayload | UpdatePartPayload) => Promise<void>;
+    /** The part being edited; omit to add a new one. */
+    part?: Part;
+    suppliers: Supplier[];
+    onSubmit: (data: CreatePartPayload) => Promise<void>;
     onCancel: () => void;
-    isSubmitting: boolean;
-    suppliers: Supplier[]; // List of available suppliers for dropdown
+    error: string | null;
 }
 
-// For the form, we'll use CreatePartPayload as the base type for fields.
-// UpdatePartPayload might have some fields optional or missing (like initialStockLevel).
-type PartFormData = yup.InferType<typeof partSchema>;
-
-const PartForm: React.FC<PartFormProps> = ({ initialData, onSubmit, onCancel, isSubmitting, suppliers }) => {
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-        reset,
-    } = useForm({
-        resolver: yupResolver(partSchema),
-        defaultValues: initialData ?
-            { // Map Part to PartFormData (CreatePartPayload fields)
-                name: initialData.name,
-                price: initialData.price,
-                costPrice: initialData.costPrice,
-                initialStockLevel: initialData.currentStockLevel, // Use currentStockLevel for initial value in edit
-                barcode: initialData.barcode,
-                supplierId: initialData.supplierId,
-            } :
-            { // Default for creating new
-                name: '',
-                price: undefined, // Let yup handle typeError for number
-                costPrice: undefined,
-                initialStockLevel: 0,
-                barcode: '',
-                supplierId: undefined,
-            },
+const PartForm: React.FC<PartFormProps> = ({ part, suppliers, onSubmit, onCancel, error }) => {
+    const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<CreatePartPayload>({
+        resolver: yupResolver(schema),
+        defaultValues: part
+            ? { ...part, initialStockLevel: part.currentStockLevel }
+            : { initialStockLevel: 0, barcode: null, supplierId: suppliers[0]?.id },
     });
 
-    useEffect(() => {
-        if (initialData) {
-            reset({
-                name: initialData.name,
-                price: initialData.price,
-                costPrice: initialData.costPrice,
-                initialStockLevel: initialData.currentStockLevel,
-                barcode: initialData.barcode,
-                supplierId: initialData.supplierId,
-            });
-        } else {
-            reset({ name: '', price: undefined, costPrice: undefined, initialStockLevel: 0, barcode: '', supplierId: undefined });
-        }
-    }, [initialData, reset]);
-
-    const handleFormSubmit = async (data: PartFormData) => {
-        await onSubmit(data);
-    };
-
     return (
-        <div className="part-form">
-            <h3>{initialData ? 'Edit Part' : 'Add New Part'}</h3>
-            <form onSubmit={handleSubmit(handleFormSubmit)}>
-                <div className="form-group">
-                    <label htmlFor="name">Part Name</label>
+        <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} noValidate>
+            <div className="modal-body form-grid">
+                <div className="field span-2">
+                    <label htmlFor="name">Part name</label>
                     <input id="name" {...register('name')} />
-                    {errors.name && <p className="error-message">{errors.name.message}</p>}
+                    {errors.name && <p className="field-error">{errors.name.message}</p>}
                 </div>
-
-                <div className="form-group">
-                    <label htmlFor="price">Selling Price (£)</label>
+                <div className="field span-2">
+                    <label htmlFor="supplierId">Supplier</label>
+                    <select id="supplierId" {...register('supplierId')}>
+                        {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                    {errors.supplierId && <p className="field-error">{errors.supplierId.message}</p>}
+                </div>
+                <div className="field">
+                    <label htmlFor="price">Selling price (£)</label>
                     <input id="price" type="number" step="0.01" {...register('price')} />
-                    {errors.price && <p className="error-message">{errors.price.message}</p>}
+                    {errors.price && <p className="field-error">{errors.price.message}</p>}
                 </div>
-
-                <div className="form-group">
-                    <label htmlFor="costPrice">Cost Price (£) (Optional)</label>
+                <div className="field">
+                    <label htmlFor="costPrice">Cost price (£)</label>
                     <input id="costPrice" type="number" step="0.01" {...register('costPrice')} />
-                    {errors.costPrice && <p className="error-message">{errors.costPrice.message}</p>}
+                    {errors.costPrice && <p className="field-error">{errors.costPrice.message}</p>}
                 </div>
-
-                {!initialData && ( // Only show initialStockLevel for new parts
-                    <div className="form-group">
-                        <label htmlFor="initialStockLevel">Initial Stock Level</label>
-                        <input id="initialStockLevel" type="number" step="1" {...register('initialStockLevel')} />
-                        {errors.initialStockLevel && <p className="error-message">{errors.initialStockLevel.message}</p>}
+                {!part && (
+                    <div className="field">
+                        <label htmlFor="initialStockLevel">Units in stock</label>
+                        <input id="initialStockLevel" type="number" {...register('initialStockLevel')} />
+                        {errors.initialStockLevel && <p className="field-error">{errors.initialStockLevel.message}</p>}
                     </div>
                 )}
-
-
-                <div className="form-group">
-                    <label htmlFor="barcode">Barcode (Optional)</label>
-                    <input id="barcode" {...register('barcode')} />
-                    {errors.barcode && <p className="error-message">{errors.barcode.message}</p>}
+                <div className={`field ${part ? 'span-2' : ''}`}>
+                    <label htmlFor="barcode">Barcode <span className="muted">(optional)</span></label>
+                    <input id="barcode" className="mono" {...register('barcode')} />
+                    {errors.barcode && <p className="field-error">{errors.barcode.message}</p>}
                 </div>
-
-                <div className="form-group">
-                    <label htmlFor="supplierId">Supplier</label>
-                    <select id="supplierId" {...register('supplierId')} defaultValue="">
-                        <option value="" disabled>-- Select Supplier --</option>
-                        {suppliers.map(supplier => (
-                            <option key={supplier.id} value={supplier.id}>
-                                {supplier.name} (ID: {supplier.id})
-                            </option>
-                        ))}
-                    </select>
-                    {errors.supplierId && <p className="error-message">{errors.supplierId.message}</p>}
-                </div>
-
-                <div className="form-actions">
-                    <button type="button" onClick={onCancel} className="cancel-btn" disabled={isSubmitting}>
-                        Cancel
-                    </button>
-                    <button type="submit" className="submit-btn" disabled={isSubmitting}>
-                        {isSubmitting ? 'Saving...' : (initialData ? 'Save Changes' : 'Add Part')}
-                    </button>
-                </div>
-            </form>
-        </div>
+                {error && <p className="alert alert-error span-2">{error}</p>}
+            </div>
+            <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={isSubmitting}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                    {isSubmitting ? 'Saving…' : part ? 'Save changes' : 'Add part'}
+                </button>
+            </div>
+        </form>
     );
 };
 

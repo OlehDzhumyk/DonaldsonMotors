@@ -1,27 +1,12 @@
-// src/types/booking.ts
+export type BookingStatus = 'Pending' | 'Assigned' | 'InProgress' | 'AwaitingPayment' | 'Paid' | 'Cancelled' | 'Archived';
 
-export interface CreateBookingPayload {
-    vehicleRegistrationNumber: string;
-    serviceTypeId: number;
-    slotStart: string;
-}
+export const ACTIVE_STATUSES: BookingStatus[] = ['Pending', 'Assigned', 'InProgress', 'AwaitingPayment'];
 
-export interface AssignMechanicPayload {
-    bookingId: number;
-    mechanicId: number;
-}
-
-export interface PartUsed {
-    partName: string;
-    quantity: number;
-    pricePerUnit: number;
-}
-
-// --- UPDATED Booking Interface ---
+/** Mirrors BookingResponseDto in the API. */
 export interface Booking {
     id: number;
     slotStart: string;
-    status: string;
+    status: BookingStatus;
 
     serviceTypeId: number;
     serviceTypeName: string;
@@ -40,21 +25,12 @@ export interface Booking {
 
     mechanicId: number | null;
     mechanicName: string | null;
-
-    jobStartTime?: string | null;
-    jobEndTime?: string | null;
-    notes?: string | null;
-    partsUsed?: PartUsed[];
-    totalCost?: number;
 }
 
-
-export interface AdminCancelBookingPayload {
-    reason: string;
-}
-
-export interface MarkAsPaidPayload {
-    paymentNotes?: string;
+export interface CreateBookingPayload {
+    vehicleRegistrationNumber: string;
+    serviceTypeId: number;
+    slotStart: string;
 }
 
 export interface UsedPartPayload {
@@ -69,22 +45,8 @@ export interface FinishJobPayload {
 }
 
 export interface BookingSearchParameters {
-    customerId?: number;
     vehicleRegistrationNumber?: string;
-    mechanicId?: number;
-    dateFrom?: string;   // ISO date string, e.g., "YYYY-MM-DD"
-    dateTo?: string;     // ISO date string
-    status?: string;     // This will be one of your BookingStatus enum string values
+    dateFrom?: string;
+    dateTo?: string;
+    status?: BookingStatus;
 }
-
-export interface UsedPartPayload {
-    partId: number;
-    quantity: number;
-}
-
-export interface FinishJobPayload {
-    description: string;
-    labourCost: number;
-    usedParts: UsedPartPayload[];
-}
-

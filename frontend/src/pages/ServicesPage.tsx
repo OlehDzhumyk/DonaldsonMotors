@@ -1,21 +1,23 @@
-// src/pages/ServicesPage.tsx
 import React from 'react';
-import { servicesList } from '../api/mockData'; // Import our mock data
 import ServiceCard from '../components/ServiceCard/ServiceCard';
-import './ServicesPage.css';
+import { useServiceTypes } from '../hooks/useServiceTypes';
 
 const ServicesPage: React.FC = () => {
-    // In a real app, you would use useEffect to fetch this data from an API
-    // For now, we just use the imported mock data.
-    const services = servicesList;
+    const { serviceTypes, isLoading, error } = useServiceTypes();
 
     return (
-        <div className="services-page">
-            <h1>Our Services</h1>
-            <div className="services-grid">
-                {services.map(service => (
-                    <ServiceCard key={service.id} service={service} />
-                ))}
+        <div className="container page">
+            <div className="page-header">
+                <div>
+                    <h1>Services and prices</h1>
+                    <p className="subtitle">Prices are for the service itself. Any parts used are added to the final invoice.</p>
+                </div>
+            </div>
+
+            {isLoading && <p className="loading">Loading services…</p>}
+            {error && <p className="alert alert-error">{error}</p>}
+            <div className="grid grid-3">
+                {serviceTypes.map(service => <ServiceCard key={service.id} service={service} />)}
             </div>
         </div>
     );

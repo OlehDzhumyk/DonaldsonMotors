@@ -1,205 +1,129 @@
-// src/pages/MyProfilePage.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { getMyProfile, addVehicle, deleteVehicle, updateVehicle } from '../api/userService';
-import type {UserProfile, VehiclePayload, Vehicle} from '../types/user';
-import VehicleCard from '../components/VehicleCard/VehicleCard';
-import AddVehicleForm from '../components/AddVehicleForm/AddVehicleForm';
-import EditVehicleForm from '../components/EditVehicleForm/EditVehicleForm';
-import './MyProfilePage.css';
+import type { UserProfile, Vehicle, VehiclePayload } from '../types/user';
+import VehicleForm from '../components/VehicleForm/VehicleForm';
+import { getErrorMessage } from '../utils/format';
+
+/** null = no form, 'new' = add form, a Vehicle = editing that vehicle */
+type FormState = null | 'new' | Vehicle;
 
 const MyProfilePage: React.FC = () => {
     const [profile, setProfile] = useState<UserProfile | null>(null);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [form, setForm] = useState<FormState>(null);
     const [formError, setFormError] = useState<string | null>(null);
-    const [showAddVehicleForm, setShowAddVehicleForm] = useState<boolean>(false);
-    const [isProcessingVehicle, setIsProcessingVehicle] = useState<boolean>(false);
-    const [showEditVehicleForm, setShowEditVehicleForm] = useState<boolean>(false);
-    const [vehicleToEdit, setVehicleToEdit] = useState<Vehicle | null>(null);
+    const [listError, setListError] = useState<string | null>(null);
 
     const fetchProfile = useCallback(async () => {
         try {
-            const data = await getMyProfile();
-            setProfile(data);
-            setFormError(null);
-        } catch (err: any) {
-            setFormError(err.response?.data?.message || err.message || 'Failed to fetch profile.');
+            setProfile(await getMyProfile());
+        } catch (err) {
+            setLoadError(getErrorMessage(err, 'Could not load your profile.'));
         }
     }, []);
 
-    useEffect(() => {
-        const initialLoad = async () => {
-            setIsLoading(true);
-            await fetchProfile();
-            setIsLoading(false);
-        };
-        initialLoad();
-    }, [fetchProfile]);
+    useEffect(() => { void fetchProfile(); }, [fetchProfile]);
 
-    const handleAddVehicleClick = () => {
-        setShowAddVehicleForm(true);
-        setShowEditVehicleForm(false);
-        setVehicleToEdit(null);
+    const openForm = (state: FormState) => {
+        setForm(state);
         setFormError(null);
+        setListError(null);
     };
 
-    const handleCancelAddVehicle = () => {
-        setShowAddVehicleForm(false);
-        setFormError(null);
-    };
-
-    // --- UPDATED handleSaveNewVehicle ---
-    const handleSaveNewVehicle = async (vehicleData: VehiclePayload) => {
-        setIsProcessingVehicle(true);
-        setFormError(null);
+    const handleSave = async (data: VehiclePayload) => {
         try {
-            await addVehicle(vehicleData);
-            setShowAddVehicleForm(false);
-            await fetchProfile();
-        } catch (err: any) {
-            let message = 'Failed to add vehicle. Please try again.'; // Default error message
-            if (err.response) {
-                // Check for specific 409 Conflict error
-                if (err.response.status === 409) {
-                    message = err.response.data?.message || `Vehicle with registration number '${vehicleData.registrationNumber}' already exists.`;
-                } else {
-                    // For other API errors, use the message from the response if available
-                    message = err.response.data?.message || err.response.data?.title || message;
-                }
-            } else {
-                // For network errors or other issues
-                message = err.message || message;
+            if (form === 'new') {
+                await addVehicle(data);
+            } else if (form) {
+                await updateVehicle(form.registrationNumber, data);
             }
-            setFormError(message);
-            console.error("Failed to add vehicle:", err);
-        } finally {
-            setIsProcessingVehicle(false);
+            setForm(null);
+            await fetchProfile();
+        } catch (err) {
+            setFormError(getErrorMessage(err, 'Could not save the vehicle.'));
         }
     };
 
-    // ... (handleEditVehicleClick, handleCancelEditVehicle, handleSaveUpdatedVehicle, handleDeleteVehicle залишаються такими ж, як у попередньому кроці)
-    const handleEditVehicleClick = (registrationNumber: string) => {
-        const vehicle = profile?.vehicles.find(v => v.registrationNumber === registrationNumber);
-        if (vehicle) {
-            setVehicleToEdit(vehicle);
-            setShowEditVehicleForm(true);
-            setShowAddVehicleForm(false);
-            setFormError(null);
-        }
-    };
-
-    const handleCancelEditVehicle = () => {
-        setShowEditVehicleForm(false);
-        setVehicleToEdit(null);
-        setFormError(null);
-    };
-
-    const handleSaveUpdatedVehicle = async (updatedVehicleData: VehiclePayload) => {
-        if (!vehicleToEdit) return;
-
-        setIsProcessingVehicle(true);
-        setFormError(null);
+    const handleDelete = async (vehicle: Vehicle) => {
+        if (!window.confirm(`Remove ${vehicle.make} ${vehicle.model} (${vehicle.registrationNumber})?`)) return;
+        setListError(null);
         try {
-            await updateVehicle(vehicleToEdit.registrationNumber, updatedVehicleData);
-            setShowEditVehicleForm(false);
-            setVehicleToEdit(null);
+            await deleteVehicle(vehicle.registrationNumber);
             await fetchProfile();
-        } catch (err: any) {
-            let message = 'Failed to update vehicle. Please try again.';
-            if (err.response) {
-                message = err.response.data?.message || err.response.data?.title || message;
-            } else {
-                message = err.message || message;
-            }
-            setFormError(message);
-        } finally {
-            setIsProcessingVehicle(false);
+        } catch (err) {
+            setListError(getErrorMessage(err, 'Could not remove the vehicle.'));
         }
     };
 
-    const handleDeleteVehicle = async (registrationNumber: string) => {
-        if (window.confirm(`Are you sure you want to delete vehicle ${registrationNumber}? This action cannot be undone.`)) {
-            setIsProcessingVehicle(true);
-            setFormError(null);
-            try {
-                await deleteVehicle(registrationNumber);
-                await fetchProfile();
-            } catch (err: any) {
-                const message = err.response?.data?.message || err.message || `Failed to delete vehicle ${registrationNumber}.`;
-                setFormError(message);
-            } finally {
-                setIsProcessingVehicle(false);
-            }
-        }
-    };
-
-
-    // ... (JSX рендеринг залишається таким же, як у попередньому кроці)
-    // Переконайтесь, що блок {formError && ...} відображається під час активної форми
-    if (isLoading) {
-        return <div className="loading-message">Loading your profile...</div>;
-    }
-
-    if (formError && !profile && !showAddVehicleForm && !showEditVehicleForm) {
-        return <div className="error-message">{formError}</div>;
-    }
-
-    if (!profile) {
-        return <div className="loading-message">No profile data found.</div>;
-    }
+    if (loadError) return <div className="container page"><p className="alert alert-error">{loadError}</p></div>;
+    if (!profile) return <p className="loading">Loading your profile…</p>;
 
     return (
-        <div className="profile-page-container">
-            <h1>My Profile</h1>
-            <div className="profile-details">
-                <div className="detail-item"><strong>Full Name:</strong> <span>{profile.fullName}</span></div>
-                <div className="detail-item"><strong>Email:</strong> <span>{profile.email}</span></div>
-                <div className="detail-item"><strong>Address:</strong> <span>{profile.address || 'Not provided'}</span></div>
-                <div className="detail-item"><strong>Phone Number:</strong> <span>{profile.phoneNumber || 'Not provided'}</span></div>
+        <div className="container page">
+            <div className="page-header">
+                <div>
+                    <h1>Profile & vehicles</h1>
+                    <p className="subtitle">Keep your details and cars up to date so booking takes seconds.</p>
+                </div>
             </div>
 
-            <div className="vehicles-section">
-                <h2>My Vehicles</h2>
+            <div className="profile-layout">
+                <section className="card">
+                    <div className="card-header"><h2>Your details</h2></div>
+                    <dl className="meta card-body">
+                        <dt>Name</dt><dd>{profile.fullName}</dd>
+                        <dt>Email</dt><dd>{profile.email}</dd>
+                        <dt>Address</dt><dd>{profile.address ?? <span className="muted">Not provided</span>}</dd>
+                        <dt>Phone</dt><dd>{profile.phoneNumber ?? <span className="muted">Not provided</span>}</dd>
+                    </dl>
+                </section>
 
-                {formError && (showAddVehicleForm || showEditVehicleForm) &&
-                    <p className="error-message" style={{textAlign: 'center', marginBottom: '15px', backgroundColor: 'rgba(217, 48, 37, 0.1)', padding: '10px', borderRadius: '6px' }}>{formError}</p>}
+                <section className="stack">
+                    {form !== null && (
+                        <VehicleForm
+                            key={form === 'new' ? 'new' : form.registrationNumber}
+                            vehicle={form === 'new' ? undefined : form}
+                            onSubmit={handleSave}
+                            onCancel={() => { openForm(null); }}
+                            error={formError}
+                        />
+                    )}
 
-                {!showAddVehicleForm && !showEditVehicleForm && (
-                    <button onClick={handleAddVehicleClick} className="add-vehicle-btn" disabled={isProcessingVehicle}>
-                        + Add New Vehicle
-                    </button>
-                )}
-
-                {showAddVehicleForm && (
-                    <AddVehicleForm
-                        onSubmit={handleSaveNewVehicle}
-                        onCancel={handleCancelAddVehicle}
-                        isSubmitting={isProcessingVehicle}
-                    />
-                )}
-
-                {showEditVehicleForm && vehicleToEdit && (
-                    <EditVehicleForm
-                        vehicleToEdit={vehicleToEdit}
-                        onSubmit={handleSaveUpdatedVehicle}
-                        onCancel={handleCancelEditVehicle}
-                        isSubmitting={isProcessingVehicle}
-                    />
-                )}
-
-                {profile.vehicles && profile.vehicles.length > 0 ? (
-                    <div className="vehicles-list">
-                        {profile.vehicles.map(vehicle => (
-                            <VehicleCard
-                                key={vehicle.registrationNumber}
-                                vehicle={vehicle}
-                                onEdit={handleEditVehicleClick}
-                                onDelete={handleDeleteVehicle}
-                            />
-                        ))}
+                    <div className="card">
+                        <div className="card-header">
+                            <h2>Vehicles <span className="count">{profile.vehicles.length}</span></h2>
+                            {form === null && (
+                                <button className="btn btn-sm btn-primary" onClick={() => { openForm('new'); }}>Add vehicle</button>
+                            )}
+                        </div>
+                        {listError && <p className="alert alert-error" style={{ margin: 16 }}>{listError}</p>}
+                        {profile.vehicles.length === 0 ? (
+                            <div className="card-body"><p className="empty-state">Add a vehicle to start booking services.</p></div>
+                        ) : (
+                            <table className="table">
+                                <thead>
+                                    <tr><th>Registration</th><th>Vehicle</th><th className="num">Mileage</th><th /></tr>
+                                </thead>
+                                <tbody>
+                                    {profile.vehicles.map(vehicle => (
+                                        <tr key={vehicle.registrationNumber}>
+                                            <td><span className="plate">{vehicle.registrationNumber}</span></td>
+                                            <td>
+                                                <strong>{vehicle.make} {vehicle.model}</strong>
+                                                <div className="muted small">{vehicle.year}</div>
+                                            </td>
+                                            <td className="num">{vehicle.mileage.toLocaleString('en-GB')} mi</td>
+                                            <td className="actions">
+                                                <button className="btn btn-sm btn-secondary" onClick={() => { openForm(vehicle); }}>Edit</button>
+                                                <button className="btn btn-sm btn-danger" onClick={() => void handleDelete(vehicle)}>Remove</button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
                     </div>
-                ) : (
-                    !showAddVehicleForm && !showEditVehicleForm && <p>You have no vehicles registered yet.</p>
-                )}
+                </section>
             </div>
         </div>
     );

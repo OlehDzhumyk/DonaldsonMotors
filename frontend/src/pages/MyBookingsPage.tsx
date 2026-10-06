@@ -1,123 +1,93 @@
-// src/pages/MyBookingsPage.tsx
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { searchBookings /*, cancelBookingByCustomer */ } from '../api/bookingService';
-import type {Booking} from '../types/booking';
-import './MyBookingsPage.css';
-import { Link } from 'react-router-dom';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { searchBookings, cancelMyBooking } from '../api/bookingService';
+import type { Booking, BookingStatus } from '../types/booking';
+import { ACTIVE_STATUSES } from '../types/booking';
+import BookingCard from '../components/BookingCard/BookingCard';
+import Modal from '../components/Modal';
+import NoteForm from '../components/NoteForm';
+import { getErrorMessage } from '../utils/format';
 
-type ViewMode = 'active' | 'history';
-
-// Define sets of statuses for filtering (can be same as manager's or simplified for customer)
-const CUSTOMER_ACTIVE_STATUSES: string[] = ['Pending', 'Booked', 'Assigned', 'InProgress', 'AwaitingPayment', 'WorkCompleted'];
-const CUSTOMER_HISTORICAL_STATUSES: string[] = ['Paid', 'Completed', 'Cancelled', 'CancelledByCustomer', 'CancelledByManager', 'Archived'];
-
+const CANCELLABLE: BookingStatus[] = ['Pending', 'Assigned', 'InProgress'];
 
 const MyBookingsPage: React.FC = () => {
-    const [allBookings, setAllBookings] = useState<Booking[]>([]);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const location = useLocation();
+    const justBooked = (location.state as { justBooked?: string } | null)?.justBooked;
+
+    const [view, setView] = useState<'upcoming' | 'past'>('upcoming');
+    const [bookings, setBookings] = useState<Booking[] | null>(null);
     const [error, setError] = useState<string | null>(null);
-    // const [cancellingId, setCancellingId] = useState<number | null>(null); // REMOVE
+    const [toCancel, setToCancel] = useState<Booking | null>(null);
+    const [cancelError, setCancelError] = useState<string | null>(null);
 
-    const [viewMode, setViewMode] = useState<ViewMode>('active');
-
-    const fetchMyBookings = useCallback(async () => {
-        setIsLoading(true);
+    const load = useCallback(async () => {
         try {
-            // For customer's "My Bookings", searchBookings is called without params.
-            // Backend scopes results to the authenticated customer.
-            const data = await searchBookings();
-            data.sort((a, b) =>
-                viewMode === 'active'
-                    ? new Date(a.slotStart).getTime() - new Date(b.slotStart).getTime() // Active: oldest first
-                    : new Date(b.slotStart).getTime() - new Date(a.slotStart).getTime() // History: newest first
-            );
-            setAllBookings(data);
-            setError(null);
-        } catch (err: any) {
-            setError(err.response?.data?.message || err.message || 'Failed to fetch your bookings.');
-            setAllBookings([]);
-        } finally {
-            setIsLoading(false);
+            setBookings(await searchBookings());
+        } catch (err) {
+            setError(getErrorMessage(err, 'Could not load your bookings.'));
         }
-    }, [viewMode]);
+    }, []);
 
-    useEffect(() => {
-        fetchMyBookings();
-    }, [fetchMyBookings]); // Refetch if viewMode changes (due to sort order)
+    useEffect(() => { void load(); }, [load]);
 
-    // Filter bookings based on viewMode
-    const bookingsToDisplay = useMemo(() => {
-        if (viewMode === 'active') {
-            return allBookings.filter(b => CUSTOMER_ACTIVE_STATUSES.includes(b.status));
-        } else { // history
-            return allBookings.filter(b => CUSTOMER_HISTORICAL_STATUSES.includes(b.status) ||
-                (new Date(b.slotStart) < new Date() && !CUSTOMER_ACTIVE_STATUSES.includes(b.status)));
+    const handleCancel = async (reason: string | null) => {
+        if (!toCancel) return;
+        try {
+            await cancelMyBooking(toCancel.id, reason ?? '');
+            setToCancel(null);
+            await load();
+        } catch (err) {
+            setCancelError(getErrorMessage(err, 'Could not cancel the booking.'));
         }
-    }, [allBookings, viewMode]);
+    };
 
-
-    if (isLoading && allBookings.length === 0) {
-        return <div className="loading-message">Loading your bookings...</div>;
-    }
-
-    if (error && allBookings.length === 0) {
-        return <div className="error-message-bookings">{error}</div>;
-    }
+    const upcoming = (bookings ?? []).filter(b => ACTIVE_STATUSES.includes(b.status))
+        .sort((a, b) => a.slotStart.localeCompare(b.slotStart));
+    const past = (bookings ?? []).filter(b => !ACTIVE_STATUSES.includes(b.status))
+        .sort((a, b) => b.slotStart.localeCompare(a.slotStart));
+    const shown = view === 'upcoming' ? upcoming : past;
 
     return (
-        <div className="my-bookings-page-container">
-            <h1>My Bookings</h1>
-
-            <div className="view-mode-toggle">
-                <button
-                    onClick={() => setViewMode('active')}
-                    className={viewMode === 'active' ? 'active' : ''}
-                    disabled={isLoading}
-                >
-                    Active/Upcoming
-                </button>
-                <button
-                    onClick={() => setViewMode('history')}
-                    className={viewMode === 'history' ? 'active' : ''}
-                    disabled={isLoading}
-                >
-                    History
-                </button>
+        <div className="container page">
+            <div className="page-header">
+                <div>
+                    <h1>My bookings</h1>
+                    <p className="subtitle">Follow each service from booking to invoice. We email you at every step.</p>
+                </div>
+                <Link to="/book" className="btn btn-primary">Book a service</Link>
             </div>
 
-            {error && <p className="error-message-bookings" style={{marginBottom: '15px', textAlign:'center'}}>{error}</p>}
-            {isLoading && <div className="loading-message">Refreshing bookings...</div>}
+            {justBooked && <p className="alert alert-success" style={{ marginBottom: 16 }}>Booked: {justBooked}. A confirmation email is on its way.</p>}
+            {error && <p className="alert alert-error" style={{ marginBottom: 16 }}>{error}</p>}
 
+            <div className="tabs" style={{ marginBottom: 16 }}>
+                <button className={view === 'upcoming' ? 'active' : ''} onClick={() => { setView('upcoming'); }}>Upcoming ({upcoming.length})</button>
+                <button className={view === 'past' ? 'active' : ''} onClick={() => { setView('past'); }}>Past ({past.length})</button>
+            </div>
 
-            {!isLoading && bookingsToDisplay.length === 0 ? (
-                <p>
-                    {viewMode === 'active'
-                        ? <>You have no active or upcoming bookings. <Link to="/book">Book a service now!</Link></>
-                        : 'You have no booking history yet.'
-                    }
+            {bookings === null && !error && <p className="loading">Loading your bookings…</p>}
+            {bookings && shown.length === 0 && (
+                <p className="empty-state">
+                    {view === 'upcoming' ? <>No upcoming bookings. <Link to="/book">Book a service</Link></> : 'No past bookings yet.'}
                 </p>
-            ) : (
-                <div className="bookings-grid">
-                    {bookingsToDisplay.map(booking => (
-                        <div key={booking.id} className="booking-card"> {/* Customer specific card view */}
-                            <h3>{booking.serviceTypeName}</h3>
-                            <p><strong>Date & Time:</strong> {new Date(booking.slotStart).toLocaleString()}</p>
-                            <p>
-                                <strong>Status:</strong>
-                                <span className={`status-badge status-${booking.status?.toLowerCase().replace(/\s+/g, '-') || 'unknown'}`}>
-                    {booking.status}
-                </span>
-                            </p>
-                            <p><strong>Vehicle:</strong> {booking.vehicleMake} {booking.vehicleModel} ({booking.vehicleRegistrationNumber})</p>
-                            {booking.mechanicName && <p><strong>Assigned Mechanic:</strong> {booking.mechanicName}</p>}
-                            <p><strong>Service Price:</strong> £{(booking.serviceTypePrice || 0).toFixed(2)}</p>
-                            {booking.totalCost && booking.totalCost !== booking.serviceTypePrice &&
-                                <p><strong>Total Cost:</strong> £{booking.totalCost.toFixed(2)}</p>
-                            }
-                            {/* NO CANCEL BUTTON FOR CUSTOMER */}
-                        </div>
-                    ))}
-                </div>
+            )}
+
+            <div className="grid grid-2">
+                {shown.map(b => (
+                    <BookingCard key={b.id} booking={b}>
+                        {CANCELLABLE.includes(b.status) && (
+                            <button className="btn btn-sm btn-danger" onClick={() => { setToCancel(b); setCancelError(null); }}>Cancel booking</button>
+                        )}
+                    </BookingCard>
+                ))}
+            </div>
+
+            {toCancel && (
+                <Modal title="Cancel this booking?" onClose={() => { setToCancel(null); }}>
+                    <NoteForm label="Why are you cancelling?" placeholder="e.g. I need to rebook for next week"
+                              minLength={10} submitLabel="Cancel booking" danger
+                              error={cancelError} onCancel={() => { setToCancel(null); }} onSubmit={handleCancel} />
+                </Modal>
             )}
         </div>
     );

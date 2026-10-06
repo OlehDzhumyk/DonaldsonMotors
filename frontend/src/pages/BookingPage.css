@@ -1,0 +1,96 @@
+.booking-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 20px;
+    align-items: start;
+}
+
+.booking-summary {
+    position: sticky;
+    top: 84px;
+}
+
+.step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin-right: 8px;
+    border-radius: 50%;
+    background: var(--navy);
+    color: #fff;
+    font-size: 12px;
+}
+
+.option-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.option {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: left;
+    font: inherit;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    cursor: pointer;
+    color: var(--text);
+}
+.option:hover { border-color: var(--border-strong); }
+.option.selected { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
+.option-row { flex-direction: row; align-items: center; gap: 12px; }
+.option-title { font-weight: 600; }
+.option-meta { font-weight: 600; font-size: 14px; margin-top: 4px; }
+
+.day-list { display: flex; flex-direction: column; }
+.day {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+.day:last-child { border-bottom: none; }
+.day-label { font-weight: 600; font-size: 14px; }
+
+.time-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.time-chip {
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    cursor: pointer;
+}
+.time-chip:hover { border-color: var(--accent); }
+.time-chip.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.summary-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-muted);
+}
+.summary-total strong { font-size: 22px; }
+
+@media (max-width: 960px) {
+    .booking-layout { grid-template-columns: 1fr; }
+    .booking-summary { position: static; }
+}
+@media (max-width: 700px) {
+    .option-grid { grid-template-columns: 1fr; }
+    .day { grid-template-columns: 1fr; }
+}

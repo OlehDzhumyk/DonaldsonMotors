@@ -1,16 +1,22 @@
-// src/main.tsx
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App.tsx';
-import './index.css';
 import { BrowserRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
-import { store } from './app/store'; // Import the configured store
-import { setupStoreForApiClient } from './api/apiClient'; // Import the setup function
+import App from './App';
+import { store } from './app/store';
+import { logout } from './app/authSlice';
+import { setupApiClient } from './api/apiClient';
+import './index.css';
 
-setupStoreForApiClient(store);
+setupApiClient({
+    getToken: () => store.getState().auth.user?.token,
+    onUnauthorized: () => store.dispatch(logout()),
+});
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+const root = document.getElementById('root');
+if (!root) throw new Error('Missing #root element');
+
+ReactDOM.createRoot(root).render(
     <React.StrictMode>
         <Provider store={store}>
             <BrowserRouter>

@@ -1,33 +1,16 @@
 import apiClient from './apiClient';
-import type {MechanicAvailability} from "../types/schedule.ts";
+import type { MechanicAvailability } from '../types/schedule';
 
-/**
- * Fetches available booking slots for a given date range.
- * Corresponds to GET /api/Schedule/availability
- * @param startDate - The start date of the range (e.g., 'YYYY-MM-DD').
- * @param endDate - The end date of the range (e.g., 'YYYY-MM-DD').
- * @returns A promise that resolves to an array of available slot date-time strings in ISO format (UTC).
- */
+/** Free slot start times (UTC ISO strings) between two dates (YYYY-MM-DD). Public endpoint. */
 export const getAvailability = async (startDate: string, endDate: string): Promise<string[]> => {
-    const response = await apiClient.get<string[]>('/schedule/availability', {
-        params: {
-            startDate,
-            endDate,
-        },
-    });
-    return response.data; // API returns IEnumerable<DateTime>, which Axios might parse as string[]
+    const { data } = await apiClient.get<string[]>('/schedule/availability', { params: { startDate, endDate } });
+    return data;
 };
 
-export const getAvailableMechanicsForSlot = async (
-    slotStart: string, // UTC ISO string
-    serviceTypeId: number
-): Promise<MechanicAvailability[]> => {
-    // Corresponds to GET /api/Schedule/available-mechanics
-    const response = await apiClient.get<MechanicAvailability[]>('/schedule/available-mechanics', {
-        params: {
-            slotStart, // Backend expects DateTime
-            serviceTypeId,
-        },
+/** Every mechanic, with whether they are free for this booking's slot. */
+export const getMechanicsForSlot = async (slotStart: string, serviceTypeId: number): Promise<MechanicAvailability[]> => {
+    const { data } = await apiClient.get<MechanicAvailability[]>('/schedule/available-mechanics', {
+        params: { slotStart, serviceTypeId },
     });
-    return response.data;
+    return data;
 };
