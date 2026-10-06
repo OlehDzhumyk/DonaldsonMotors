@@ -11,8 +11,9 @@ export const formatDate = (iso: string): string =>
 export const formatTime = (iso: string): string =>
     new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
-export const formatMoney = (amount: number | null | undefined): string =>
-    `£${(amount ?? 0).toFixed(2)}`;
+const money = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' });
+
+export const formatMoney = (amount: number | null | undefined): string => money.format(amount ?? 0);
 
 export const formatHours = (hours: number): string =>
     hours === 1 ? '1 hour' : hours < 1 ? `${String(hours * 60)} min` : `${String(hours)} hours`;

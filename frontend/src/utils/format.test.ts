@@ -11,6 +11,7 @@ describe('formatting', () => {
     it('formats money in pounds with two decimals', () => {
         expect(formatMoney(80)).toBe('£80.00');
         expect(formatMoney(null)).toBe('£0.00');
+        expect(formatMoney(3485)).toBe('£3,485.00');
     });
 
     it('describes durations in words', () => {
