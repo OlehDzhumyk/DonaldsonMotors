@@ -225,13 +225,34 @@ public class BookingServiceTests
     // --- Payment ---
 
     [Fact]
+    public async Task FinishJob_MergesTheSamePartListedTwice()
+    {
+        var (booking, job) = BookingInProgress();
+
+        await _service.FinishJobAsync(booking.Id, MechanicId, new FinishJobRequestDto
+        {
+            Description = "Replaced front and rear pads",
+            LabourCost = 80m,
+            UsedParts = [new UsedPartDto { PartId = 1, Quantity = 1 }, new UsedPartDto { PartId = 1, Quantity = 2 }],
+        });
+
+        var used = Assert.Single(_db.JobParts);
+        Assert.Equal(3, used.QuantityUsed);
+        Assert.Equal(45m, used.UnitPrice);
+        Assert.Equal(0, _db.Parts[0].CurrentStockLevel);
+        Assert.Equal(135m, job.PartsCost);
+    }
+
+    [Fact]
     public async Task MarkAsPaid_RecordsThePaymentAndSendsTheInvoice()
     {
         var (booking, job) = BookingInProgress();
         job.LabourCost = 80m;
         job.CompletionDate = DateTime.UtcNow;
-        job.JobParts = [new JobPart { PartId = 1, Part = _db.Parts[0], QuantityUsed = 1 }];
+        job.JobParts = [new JobPart { PartId = 1, Part = _db.Parts[0], QuantityUsed = 1, UnitPrice = 45m }];
         booking.Status = BookingStatus.AwaitingPayment;
+        // A price rise after the job was finished must not change what the customer pays.
+        _db.Parts[0].Price = 60m;
 
         await _service.MarkAsPaidAsync(booking.Id, new MarkAsPaidRequestDto { PaymentNotes = "Card" }, performedByUserId: 1);
 

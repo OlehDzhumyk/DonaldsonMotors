@@ -66,6 +66,7 @@ namespace DonaldsonMotors.API.Data
             builder.Entity<Job>().Property(j => j.LabourCost).HasColumnType("decimal(18,2)");
             builder.Entity<Job>().Property(j => j.PartsCost).HasColumnType("decimal(18,2)");
             builder.Entity<Part>().Property(p => p.Price).HasColumnType("decimal(18,2)");
+            builder.Entity<JobPart>().Property(jp => jp.UnitPrice).HasColumnType("decimal(18,2)");
             builder.Entity<Payment>().Property(p => p.Amount).HasColumnType("decimal(18,2)");
             builder.Entity<ServiceType>().Property(st => st.Price).HasColumnType("decimal(18,2)");
 

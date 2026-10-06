@@ -215,7 +215,7 @@ namespace DonaldsonMotors.API.Data
                 PartsCost = partsCost,
                 StartDate = booking.SlotStart,
                 CompletionDate = booking.SlotStart.AddHours(2),
-                JobParts = usedParts.Select(p => new JobPart { PartId = p.Part.Id, QuantityUsed = p.Quantity }).ToList(),
+                JobParts = usedParts.Select(p => new JobPart { PartId = p.Part.Id, QuantityUsed = p.Quantity, UnitPrice = p.Part.Price }).ToList(),
             };
             var invoice = new Invoice { Booking = booking, TotalCost = labour + partsCost, DateIssued = job.CompletionDate.Value };
             context.Bookings.Add(booking);

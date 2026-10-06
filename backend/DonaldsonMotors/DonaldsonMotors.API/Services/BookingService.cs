@@ -233,7 +233,7 @@ namespace DonaldsonMotors.API.Services
                 throw new BookingOperationException($"No completed job directly associated with the assigned mechanic found for booking ID {bookingId}. Cannot finalize invoice or mark as paid.");
             }
             decimal finalLabourCost = job.LabourCost;
-            decimal finalPartsCost = job.JobParts?.Sum(jp => jp.Part != null ? (jp.QuantityUsed * jp.Part.Price) : 0) ?? 0m;
+            decimal finalPartsCost = job.JobParts?.Sum(jp => jp.QuantityUsed * jp.UnitPrice) ?? 0m;
 
 
             var invoiceEntity = booking.Invoice;
@@ -274,12 +274,12 @@ namespace DonaldsonMotors.API.Services
                 foreach (var jp in job.JobParts)
                 {
                     if (jp.Part == null) continue; // Should be loaded
-                    var partSubtotal = jp.Part.Price * jp.QuantityUsed;
+                    var partSubtotal = jp.UnitPrice * jp.QuantityUsed;
                     partsForViewModel.Add(new InvoicePartItemViewModel
                     {
                         PartName = jp.Part.Name,
                         QuantityUsed = jp.QuantityUsed,
-                        UnitPriceFormatted = jp.Part.Price.ToString("F2"),
+                        UnitPriceFormatted = jp.UnitPrice.ToString("F2"),
                         SubtotalFormatted = partSubtotal.ToString("F2")
                     });
                 }
@@ -454,21 +454,29 @@ namespace DonaldsonMotors.API.Services
             decimal calculatedPartsCost = 0m;
             if (dto.UsedParts != null && dto.UsedParts.Any())
             {
-                job.JobParts ??= new List<JobPart>();
-                foreach (var partDto in dto.UsedParts)
+                // The same part listed twice becomes one line (JobPart is keyed by job + part).
+                var usedParts = dto.UsedParts
+                    .GroupBy(p => p.PartId)
+                    .Select(g => (PartId: g.Key, Quantity: g.Sum(p => p.Quantity)));
+
+                foreach (var (partId, quantity) in usedParts)
                 {
-                    var part = await _unitOfWork.Parts.GetByIdAsync(partDto.PartId)
-                        ?? throw new PartNotFoundException(partDto.PartId);
+                    var part = await _unitOfWork.Parts.GetByIdAsync(partId)
+                        ?? throw new PartNotFoundException(partId);
 
-                    if (part.CurrentStockLevel < partDto.Quantity)
-                        throw new InsufficientStockException(part.Id, part.Name, partDto.Quantity, part.CurrentStockLevel);
+                    if (part.CurrentStockLevel < quantity)
+                        throw new InsufficientStockException(part.Id, part.Name, quantity, part.CurrentStockLevel);
 
-                    part.CurrentStockLevel -= partDto.Quantity;
-                    calculatedPartsCost += part.Price * partDto.Quantity;
+                    part.CurrentStockLevel -= quantity;
+                    calculatedPartsCost += part.Price * quantity;
 
-                    // Adding to context directly, or if JobParts repo has specific logic, use it.
-                    // For simple Add, direct context add via UnitOfWork.JobParts is fine.
-                    await _unitOfWork.JobParts.AddAsync(new JobPart { JobId = job.Id, PartId = part.Id, QuantityUsed = partDto.Quantity });
+                    await _unitOfWork.JobParts.AddAsync(new JobPart
+                    {
+                        JobId = job.Id,
+                        PartId = part.Id,
+                        QuantityUsed = quantity,
+                        UnitPrice = part.Price,
+                    });
                 }
             }
             job.PartsCost = calculatedPartsCost;
