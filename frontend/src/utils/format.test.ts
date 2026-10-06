@@ -41,6 +41,16 @@ describe('getErrorMessage', () => {
         expect(getErrorMessage(axiosErrorWith(400, body), 'fallback')).toBe('Too short. Required.');
     });
 
+    it('uses the detail of a ProblemDetails body', () => {
+        const body = { title: 'Conflict', status: 409, detail: 'This time slot has just been booked.' };
+        expect(getErrorMessage(axiosErrorWith(409, body), 'fallback')).toBe('This time slot has just been booked.');
+    });
+
+    it('joins a plain list of errors, such as password rules', () => {
+        const body = { title: 'Bad Request', detail: 'Registration failed', errors: ['Too short.', 'Needs a digit.'] };
+        expect(getErrorMessage(axiosErrorWith(400, body), 'fallback')).toBe('Too short. Needs a digit.');
+    });
+
     it('falls back when there is nothing useful', () => {
         expect(getErrorMessage(axiosErrorWith(500, ''), 'Could not save.')).toBe('Could not save.');
         expect(getErrorMessage('weird', 'Could not save.')).toBe('Could not save.');

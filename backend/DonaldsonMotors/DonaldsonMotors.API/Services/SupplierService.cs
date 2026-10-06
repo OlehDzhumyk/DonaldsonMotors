@@ -1,4 +1,5 @@
 ﻿using DonaldsonMotors.API.DTOs.Supplier;
+using DonaldsonMotors.API.Exceptions;
 using DonaldsonMotors.API.Interfaces;
 using DonaldsonMotors.API.Mappers; // Ensure your mappers are in this namespace
 
@@ -38,7 +39,7 @@ namespace DonaldsonMotors.API.Services
             if (existingSupplier != null)
             {
                 _logger.LogWarning("Supplier with name {SupplierName} already exists.", dto.Name);
-                throw new InvalidOperationException($"A supplier with the name '{dto.Name}' already exists.");
+                throw new DuplicateResourceException($"A supplier with the name '{dto.Name}' already exists.");
             }
 
             var supplierEntity = dto.ToSupplierEntity(); // Using mapper
@@ -68,7 +69,7 @@ namespace DonaldsonMotors.API.Services
                 if (conflictingSupplier != null)
                 {
                     _logger.LogWarning("Update failed: another supplier with name {SupplierName} already exists.", dto.Name);
-                    throw new InvalidOperationException($"Another supplier with the name '{dto.Name}' already exists.");
+                    throw new DuplicateResourceException($"Another supplier with the name '{dto.Name}' already exists.");
                 }
             }
 
@@ -97,7 +98,7 @@ namespace DonaldsonMotors.API.Services
             if (hasParts.Any())
             {
                 _logger.LogWarning("Cannot delete supplier {SupplierId} as it has associated parts.", id);
-                throw new InvalidOperationException("Cannot delete supplier: it has associated parts. Please reassign or delete parts first.");
+                throw new ResourceInUseException("Cannot delete supplier: it has associated parts. Please reassign or delete parts first.");
             }
 
             _unitOfWork.Suppliers.Delete(supplier);

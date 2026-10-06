@@ -55,30 +55,16 @@ namespace DonaldsonMotors.API.Controllers
         [HttpPost]
         [Authorize(Roles = Roles.Customer)]
         [ProducesResponseType(typeof(BookingResponseDto), StatusCodes.Status201Created)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status409Conflict)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
         public async Task<IActionResult> CreateBooking([FromBody] CreateBookingRequestDto dto)
         {
-            try
-            {
-                var customerId = GetCurrentUserId();
-                var createdBooking = await _bookingService.CreateBookingAsync(customerId, dto);
-                // Returns a 201 Created status with a location header pointing to the new resource.
-                return CreatedAtAction(nameof(GetMyBookings), null, createdBooking);
-            }
-            catch (UserProfileNotFoundException ex) { return NotFound(ex.Message); }
-            catch (VehicleAccessDeniedException ex) { return StatusCode(StatusCodes.Status403Forbidden, ex.Message); }
-            catch (ServiceTypeNotFoundException ex) { return BadRequest(ex.Message); }
-            catch (SlotUnavailableException ex) { return Conflict(ex.Message); }
-            catch (BookingOperationException ex) { return BadRequest(ex.Message); }
-            catch (UnauthorizedAccessException ex) { return Unauthorized(ex.Message); }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unexpected error during booking creation for DTO: {@Dto}", dto);
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
-            }
+            var customerId = GetCurrentUserId();
+            var createdBooking = await _bookingService.CreateBookingAsync(customerId, dto);
+            // Returns a 201 Created status with a location header pointing to the new resource.
+            return CreatedAtAction(nameof(GetMyBookings), null, createdBooking);
         }
 
         /// <summary>
@@ -109,25 +95,14 @@ namespace DonaldsonMotors.API.Controllers
         [HttpPatch("{id}/cancel-by-customer")]
         [Authorize(Roles = Roles.Customer)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> CancelBookingByCustomer(int id, [FromBody] CancelBookingRequestDto dto)
         {
-            try
-            {
-                var customerId = GetCurrentUserId();
-                await _bookingService.CancelBookingByCustomerAsync(id, customerId, dto);
-                return NoContent();
-            }
-            catch (BookingNotFoundException ex) { return NotFound(ex.Message); }
-            catch (BookingAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, ex.Message); }
-            catch (BookingCancellationNotAllowedException ex) { return BadRequest(ex.Message); }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error cancelling booking {BookingId} by customer.", id);
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
-            }
+            var customerId = GetCurrentUserId();
+            await _bookingService.CancelBookingByCustomerAsync(id, customerId, dto);
+            return NoContent();
         }
 
         // === MANAGER ENDPOINTS ===
@@ -156,23 +131,12 @@ namespace DonaldsonMotors.API.Controllers
         [HttpPatch("assign-mechanic")]
         [Authorize(Roles = Roles.Manager)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> AssignMechanic([FromBody] AssignMechanicRequestDto dto)
         {
-            try
-            {
-                await _bookingService.AssignMechanicAsync(dto);
-                return NoContent();
-            }
-            catch (BookingNotFoundException ex) { return NotFound(ex.Message); }
-            catch (EmployeeNotFoundException ex) { return NotFound(ex.Message); }
-            catch (MechanicAssignmentException ex) { return BadRequest(ex.Message); }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error assigning mechanic for BookingId {BookingId}", dto.BookingId);
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
-            }
+            await _bookingService.AssignMechanicAsync(dto);
+            return NoContent();
         }
 
         /// <summary>
@@ -186,40 +150,14 @@ namespace DonaldsonMotors.API.Controllers
         [HttpPatch("{id}/admin-cancel")]
         [Authorize(Roles = Roles.Manager)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> CancelBookingByAdmin(int id, [FromBody] CancelBookingRequestDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            try
-            {
-                var adminUserId = GetCurrentUserId();
-                _logger.LogInformation("Admin {AdminUserId} attempting to cancel BookingId {BookingId} with reason: {Reason}", adminUserId, id, dto.Reason);
-                await _bookingService.CancelBookingByAdminAsync(id, adminUserId, dto);
-                return NoContent();
-            }
-            catch (BookingNotFoundException ex)
-            {
-                _logger.LogWarning(ex, "Admin cancel failed: Booking {BookingId} not found.", id);
-                return NotFound(ex.Message);
-            }
-            catch (BookingCancellationNotAllowedException ex)
-            {
-                _logger.LogWarning(ex, "Admin cancel failed for BookingId {BookingId}: Cancellation not allowed.", id);
-                return BadRequest(ex.Message);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                _logger.LogWarning(ex, "Unauthorized access attempt in AdminCancelBooking. Message: {ErrorMessage}", ex.Message);
-                return Unauthorized(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error cancelling booking {BookingId} by admin.", id);
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
-            }
+            var adminUserId = GetCurrentUserId();
+            _logger.LogInformation("Admin {AdminUserId} attempting to cancel BookingId {BookingId} with reason: {Reason}", adminUserId, id, dto.Reason);
+            await _bookingService.CancelBookingByAdminAsync(id, adminUserId, dto);
+            return NoContent();
         }
 
         // === MECHANIC ENDPOINTS ===
@@ -235,25 +173,14 @@ namespace DonaldsonMotors.API.Controllers
         [HttpPost("{id}/start-job")]
         [Authorize(Roles = Roles.Mechanic)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> StartJob(int id)
         {
-            try
-            {
-                var mechanicId = GetCurrentUserId();
-                await _bookingService.StartJobAsync(id, mechanicId);
-                return NoContent();
-            }
-            catch (BookingNotFoundException ex) { return NotFound(ex.Message); }
-            catch (BookingAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, ex.Message); }
-            catch (JobStartConditionException ex) { return BadRequest(ex.Message); }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error starting job for BookingId {BookingId}", id);
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
-            }
+            var mechanicId = GetCurrentUserId();
+            await _bookingService.StartJobAsync(id, mechanicId);
+            return NoContent();
         }
 
         /// <summary>
@@ -268,27 +195,14 @@ namespace DonaldsonMotors.API.Controllers
         [HttpPost("{id}/finish-job")]
         [Authorize(Roles = Roles.Mechanic)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> FinishJob(int id, [FromBody] FinishJobRequestDto dto)
         {
-            try
-            {
-                var mechanicId = GetCurrentUserId();
-                await _bookingService.FinishJobAsync(id, mechanicId, dto);
-                return NoContent();
-            }
-            catch (BookingNotFoundException ex) { return NotFound(ex.Message); }
-            catch (BookingAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, ex.Message); }
-            catch (InsufficientStockException ex) { return Conflict(ex.Message); }
-            catch (ConcurrencyConflictException ex) { return Conflict(ex.Message); }
-            catch (JobOperationException ex) { return BadRequest(ex.Message); }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error finishing job for BookingId {BookingId}", id);
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
-            }
+            var mechanicId = GetCurrentUserId();
+            await _bookingService.FinishJobAsync(id, mechanicId, dto);
+            return NoContent();
         }
 
         // === ACCOUNTING & GENERAL ENDPOINTS ===
@@ -304,41 +218,15 @@ namespace DonaldsonMotors.API.Controllers
         [HttpPatch("{id}/mark-as-paid")]
         [Authorize(Roles = $"{Roles.Manager},{Roles.AccountsClerk}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> MarkBookingAsPaid(int id, [FromBody] MarkAsPaidRequestDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            try
-            {
-                var performedByUserId = GetCurrentUserId();
-                _logger.LogInformation("User {PerformedByUserId} attempting to mark BookingId {BookingId} as paid.", performedByUserId, id);
-                await _bookingService.MarkAsPaidAsync(id, dto, performedByUserId);
-                _logger.LogInformation("BookingId {BookingId} successfully processed for payment marking.", id);
-                return NoContent();
-            }
-            catch (BookingNotFoundException ex)
-            {
-                _logger.LogWarning(ex, "Failed to mark booking {BookingId} as paid: Booking not found.", id);
-                return NotFound(ex.Message);
-            }
-            catch (BookingOperationException ex)
-            {
-                _logger.LogWarning(ex, "Failed to mark booking {BookingId} as paid: Operation not allowed. Message: {ErrorMessage}", id, ex.Message);
-                return BadRequest(ex.Message);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                _logger.LogWarning(ex, "Unauthorized access attempt in MarkBookingAsPaid. Message: {ErrorMessage}", ex.Message);
-                return Unauthorized(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error marking booking {BookingId} as paid.", id);
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred while marking booking as paid.");
-            }
+            var performedByUserId = GetCurrentUserId();
+            _logger.LogInformation("User {PerformedByUserId} attempting to mark BookingId {BookingId} as paid.", performedByUserId, id);
+            await _bookingService.MarkAsPaidAsync(id, dto, performedByUserId);
+            _logger.LogInformation("BookingId {BookingId} successfully processed for payment marking.", id);
+            return NoContent();
         }
 
         /// <summary>
@@ -356,30 +244,12 @@ namespace DonaldsonMotors.API.Controllers
         [HttpGet("search")]
         [Authorize(Roles = $"{Roles.Manager},{Roles.AccountsClerk},{Roles.Customer},{Roles.Mechanic}")]
         [ProducesResponseType(typeof(IEnumerable<BookingResponseDto>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> SearchBookings([FromQuery] BookingSearchRequestDto searchParameters)
         {
-            try
-            {
-                // Pass the ClaimsPrincipal to the service layer so it can make decisions based on user role and ID.
-                var bookings = await _bookingService.SearchBookingsAsync(searchParameters, User);
-                return Ok(bookings);
-            }
-            catch (ArgumentException ex)
-            {
-                _logger.LogWarning("Booking search failed due to invalid arguments: {ErrorMessage}", ex.Message);
-                return BadRequest(ex.Message);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                _logger.LogWarning("Booking search failed due to unauthorized access: {ErrorMessage}", ex.Message);
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An unexpected error occurred while searching bookings.");
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred during search.");
-            }
+            // Pass the ClaimsPrincipal to the service layer so it can make decisions based on user role and ID.
+            var bookings = await _bookingService.SearchBookingsAsync(searchParameters, User);
+            return Ok(bookings);
         }
     }
 }

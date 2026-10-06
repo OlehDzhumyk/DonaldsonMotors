@@ -44,7 +44,7 @@ namespace DonaldsonMotors.API.Controllers
             var supplier = await _supplierService.GetByIdAsync(id);
             if (supplier == null)
             {
-                return NotFound($"Supplier with ID {id} not found.");
+                return Problem(detail: $"Supplier with ID {id} not found.", statusCode: StatusCodes.Status404NotFound);
             }
             return Ok(supplier);
         }
@@ -59,26 +59,8 @@ namespace DonaldsonMotors.API.Controllers
         [ProducesResponseType(StatusCodes.Status409Conflict)] // For duplicate names
         public async Task<IActionResult> CreateSupplier([FromBody] CreateSupplierRequestDto dto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
-            try
-            {
-                var createdSupplier = await _supplierService.CreateAsync(dto);
-                return CreatedAtAction(nameof(GetSupplierById), new { id = createdSupplier.Id }, createdSupplier);
-            }
-            catch (InvalidOperationException ex) // Catching specific exception for duplicate name
-            {
-                _logger.LogWarning("Failed to create supplier: {ErrorMessage}", ex.Message);
-                return Conflict(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An unexpected error occurred while creating a supplier.");
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
-            }
+            var createdSupplier = await _supplierService.CreateAsync(dto);
+            return CreatedAtAction(nameof(GetSupplierById), new { id = createdSupplier.Id }, createdSupplier);
         }
 
         /// <summary>
@@ -93,31 +75,13 @@ namespace DonaldsonMotors.API.Controllers
         [ProducesResponseType(StatusCodes.Status409Conflict)] // For duplicate names
         public async Task<IActionResult> UpdateSupplier(int id, [FromBody] UpdateSupplierRequestDto dto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
             _logger.LogInformation("Attempting to update supplier with ID: {SupplierId}", id);
-            try
+            var updatedSupplier = await _supplierService.UpdateAsync(id, dto);
+            if (updatedSupplier == null)
             {
-                var updatedSupplier = await _supplierService.UpdateAsync(id, dto);
-                if (updatedSupplier == null)
-                {
-                    return NotFound($"Supplier with ID {id} not found.");
-                }
-                return Ok(updatedSupplier);
+                return Problem(detail: $"Supplier with ID {id} not found.", statusCode: StatusCodes.Status404NotFound);
             }
-            catch (InvalidOperationException ex) // Catching specific exception for duplicate name
-            {
-                _logger.LogWarning("Failed to update supplier {SupplierId}: {ErrorMessage}", id, ex.Message);
-                return Conflict(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An unexpected error occurred while updating supplier {SupplierId}.", id);
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
-            }
+            return Ok(updatedSupplier);
         }
 
         /// <summary>
@@ -131,25 +95,12 @@ namespace DonaldsonMotors.API.Controllers
         public async Task<IActionResult> DeleteSupplier(int id)
         {
             _logger.LogInformation("Attempting to delete supplier with ID: {SupplierId}", id);
-            try
+            var success = await _supplierService.DeleteAsync(id);
+            if (!success)
             {
-                var success = await _supplierService.DeleteAsync(id);
-                if (!success)
-                {
-                    return NotFound($"Supplier with ID {id} not found.");
-                }
-                return NoContent();
+                return Problem(detail: $"Supplier with ID {id} not found.", statusCode: StatusCodes.Status404NotFound);
             }
-            catch (InvalidOperationException ex) // Catching specific exception (e.g., supplier has parts)
-            {
-                _logger.LogWarning("Failed to delete supplier {SupplierId}: {ErrorMessage}", id, ex.Message);
-                return BadRequest(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An unexpected error occurred while deleting supplier {SupplierId}.", id);
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
-            }
+            return NoContent();
         }
     }
 }

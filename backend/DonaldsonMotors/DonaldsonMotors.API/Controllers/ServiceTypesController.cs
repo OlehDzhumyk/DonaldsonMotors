@@ -50,7 +50,7 @@ namespace DonaldsonMotors.API.Controllers
             var serviceType = await _serviceTypeService.GetByIdAsync(id);
             if (serviceType == null)
             {
-                return NotFound($"Service Type with ID {id} not found.");
+                return Problem(detail: $"Service Type with ID {id} not found.", statusCode: StatusCodes.Status404NotFound);
             }
             return Ok(serviceType);
         }
@@ -66,28 +66,12 @@ namespace DonaldsonMotors.API.Controllers
         [HttpPost]
         [Authorize(Roles = Roles.Manager)]
         [ProducesResponseType(typeof(ServiceTypeResponseDto), StatusCodes.Status201Created)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status409Conflict)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
         public async Task<IActionResult> CreateServiceType([FromBody] CreateServiceTypeRequestDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            try
-            {
-                var createdServiceType = await _serviceTypeService.CreateAsync(dto);
-                return CreatedAtAction(nameof(GetServiceTypeById), new { id = createdServiceType.Id }, createdServiceType);
-            }
-            catch (DuplicateResourceException ex)
-            {
-                _logger.LogWarning("Failed to create service type: {ErrorMessage}", ex.Message);
-                return Conflict(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating service type.");
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
-            }
+            var createdServiceType = await _serviceTypeService.CreateAsync(dto);
+            return CreatedAtAction(nameof(GetServiceTypeById), new { id = createdServiceType.Id }, createdServiceType);
         }
 
         /// <summary>
@@ -103,32 +87,16 @@ namespace DonaldsonMotors.API.Controllers
         [HttpPut("{id}")]
         [Authorize(Roles = Roles.Manager)]
         [ProducesResponseType(typeof(ServiceTypeResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status409Conflict)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
         public async Task<IActionResult> UpdateServiceType(int id, [FromBody] UpdateServiceTypeRequestDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            var updatedServiceType = await _serviceTypeService.UpdateAsync(id, dto);
+            if (updatedServiceType == null)
+                return Problem(detail: $"Service Type with ID {id} not found.", statusCode: StatusCodes.Status404NotFound);
 
-            try
-            {
-                var updatedServiceType = await _serviceTypeService.UpdateAsync(id, dto);
-                if (updatedServiceType == null)
-                    return NotFound($"Service Type with ID {id} not found.");
-
-                return Ok(updatedServiceType);
-            }
-            catch (DuplicateResourceException ex)
-            {
-                _logger.LogWarning("Failed to update service type ID {Id}: {ErrorMessage}", id, ex.Message);
-                return Conflict(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating service type ID {Id}.", id);
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
-            }
+            return Ok(updatedServiceType);
         }
 
         /// <summary>
@@ -141,28 +109,15 @@ namespace DonaldsonMotors.API.Controllers
         [HttpDelete("{id}")]
         [Authorize(Roles = Roles.Manager)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteServiceType(int id)
         {
-            try
-            {
-                var success = await _serviceTypeService.DeleteAsync(id);
-                if (!success)
-                    return NotFound($"Service Type with ID {id} not found.");
+            var success = await _serviceTypeService.DeleteAsync(id);
+            if (!success)
+                return Problem(detail: $"Service Type with ID {id} not found.", statusCode: StatusCodes.Status404NotFound);
 
-                return NoContent();
-            }
-            catch (ResourceInUseException ex)
-            {
-                _logger.LogWarning("Failed to delete service type ID {Id}: {ErrorMessage}", id, ex.Message);
-                return BadRequest(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting service type ID {Id}.", id);
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
-            }
+            return NoContent();
         }
     }
 }

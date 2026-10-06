@@ -105,7 +105,7 @@ namespace DonaldsonMotors.API.Services
                 b.Status != BookingStatus.Archived);
             if (activeBookings.Any())
             {
-                throw new InvalidOperationException($"Cannot delete vehicle '{registration}' as it has active or pending bookings.");
+                throw new ResourceInUseException($"Cannot delete vehicle '{registration}' as it has active or pending bookings.");
             }
             _unitOfWork.Vehicles.Delete(vehicle);
             await _unitOfWork.CompleteAsync();

@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using DonaldsonMotors.API.DTOs.Booking;
 using DonaldsonMotors.API.DTOs.Part;
 using DonaldsonMotors.API.DTOs.Schedule;
+using Microsoft.AspNetCore.Mvc;
 
 namespace DonaldsonMotors.Tests.Integration;
 
@@ -81,6 +82,9 @@ public class BookingFlowTests(ApiFactory app)
         Assert.NotEqual(booking.SlotStart, await FirstFreeSlotAsync(customer));
         var again = await customer.PostAsJsonAsync("/api/bookings", new { vehicleRegistrationNumber = "SK18XYZ", serviceTypeId = 1, slotStart = booking.SlotStart });
         Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
+        var problem = await again.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.Equal(409, problem!.Status);
+        Assert.Contains("just been booked", problem.Detail);
     }
 
     [Fact]

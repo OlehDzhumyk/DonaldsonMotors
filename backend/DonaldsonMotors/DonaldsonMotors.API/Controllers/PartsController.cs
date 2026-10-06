@@ -50,7 +50,7 @@ namespace DonaldsonMotors.API.Controllers
             if (part == null)
             {
                 _logger.LogWarning("Part with ID {PartId} not found.", id);
-                return NotFound($"Part with ID {id} not found.");
+                return Problem(detail: $"Part with ID {id} not found.", statusCode: StatusCodes.Status404NotFound);
             }
             return Ok(part);
         }
@@ -64,27 +64,12 @@ namespace DonaldsonMotors.API.Controllers
         [HttpPost]
         [Authorize(Roles = $"{Roles.StockController},{Roles.Manager}")]
         [ProducesResponseType(typeof(PartResponseDto), StatusCodes.Status201Created)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status409Conflict)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
         public async Task<IActionResult> CreatePart([FromBody] CreatePartRequestDto dto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-            try
-            {
-                var createdPart = await _partService.CreateAsync(dto);
-                return CreatedAtAction(nameof(GetPartById), new { id = createdPart.Id }, createdPart);
-            }
-            catch (ArgumentException ex) { return BadRequest(ex.Message); }
-            catch (DuplicateResourceException ex) { return Conflict(ex.Message); } // Assuming you defined this
-            catch (InvalidOperationException ex) { return Conflict(ex.Message); } // Or more general conflict
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating part.");
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
-            }
+            var createdPart = await _partService.CreateAsync(dto);
+            return CreatedAtAction(nameof(GetPartById), new { id = createdPart.Id }, createdPart);
         }
 
         /// <summary>
@@ -93,32 +78,17 @@ namespace DonaldsonMotors.API.Controllers
         [HttpPut("{id}")]
         [Authorize(Roles = $"{Roles.StockController},{Roles.Manager}")]
         [ProducesResponseType(typeof(PartResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status409Conflict)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
         public async Task<IActionResult> UpdatePart(int id, [FromBody] UpdatePartRequestDto dto)
         {
-            if (!ModelState.IsValid)
+            var updatedPart = await _partService.UpdateAsync(id, dto);
+            if (updatedPart == null)
             {
-                return BadRequest(ModelState);
+                return Problem(detail: $"Part with ID {id} not found.", statusCode: StatusCodes.Status404NotFound);
             }
-            try
-            {
-                var updatedPart = await _partService.UpdateAsync(id, dto);
-                if (updatedPart == null)
-                {
-                    return NotFound($"Part with ID {id} not found.");
-                }
-                return Ok(updatedPart);
-            }
-            catch (ArgumentException ex) { return BadRequest(ex.Message); }
-            catch (DuplicateResourceException ex) { return Conflict(ex.Message); } // Assuming you defined this
-            catch (InvalidOperationException ex) { return Conflict(ex.Message); }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating part ID {PartId}.", id);
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
-            }
+            return Ok(updatedPart);
         }
 
         /// <summary>
@@ -127,30 +97,16 @@ namespace DonaldsonMotors.API.Controllers
         [HttpPatch("{id}/stock")]
         [Authorize(Roles = $"{Roles.StockController},{Roles.Manager}")]
         [ProducesResponseType(typeof(PartResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> UpdateStockLevel(int id, [FromBody] UpdateStockLevelRequestDto dto)
         {
-            if (!ModelState.IsValid)
+            var updatedPart = await _partService.UpdateStockLevelAsync(id, dto);
+            if (updatedPart == null)
             {
-                return BadRequest(ModelState);
+                return Problem(detail: $"Part with ID {id} not found for stock update.", statusCode: StatusCodes.Status404NotFound);
             }
-            try
-            {
-                var updatedPart = await _partService.UpdateStockLevelAsync(id, dto);
-                if (updatedPart == null)
-                {
-                    return NotFound($"Part with ID {id} not found for stock update.");
-                }
-                return Ok(updatedPart);
-            }
-            catch (ConcurrencyConflictException ex) { return Conflict(ex.Message); }
-            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating stock for part ID {PartId}.", id);
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
-            }
+            return Ok(updatedPart);
         }
 
         /// <summary>
@@ -159,26 +115,16 @@ namespace DonaldsonMotors.API.Controllers
         [HttpDelete("{id}")]
         [Authorize(Roles = $"{Roles.StockController},{Roles.Manager}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeletePart(int id)
         {
-            try
+            var success = await _partService.DeleteAsync(id);
+            if (!success)
             {
-                var success = await _partService.DeleteAsync(id);
-                if (!success)
-                {
-                    return NotFound($"Part with ID {id} not found.");
-                }
-                return NoContent();
+                return Problem(detail: $"Part with ID {id} not found.", statusCode: StatusCodes.Status404NotFound);
             }
-            catch (ResourceInUseException ex) { return BadRequest(ex.Message); }
-            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting part ID {PartId}.", id);
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
-            }
+            return NoContent();
         }
     }
 }

@@ -47,7 +47,7 @@ public class CatalogueTests(ApiFactory app)
 
         var response = await stock.DeleteAsync($"/api/suppliers/{euroParts.Id}");
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     [Fact]
@@ -76,7 +76,7 @@ public class CatalogueTests(ApiFactory app)
 
         var response = await stock.DeleteAsync($"/api/parts/{filter.Id}");
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public class CatalogueTests(ApiFactory app)
         var customer = await app.ClientForAsync(DemoAccounts.Customer);
 
         Assert.Equal(HttpStatusCode.Forbidden, (await customer.PostAsJsonAsync("/api/servicetypes", new { name = "Free service", description = "x", price = 1m, durationHours = 1.0 })).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await manager.DeleteAsync("/api/servicetypes/1")).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await manager.DeleteAsync("/api/servicetypes/1")).StatusCode);
     }
 
     [Fact]

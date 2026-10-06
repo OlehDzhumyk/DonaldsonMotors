@@ -31,7 +31,7 @@ namespace DonaldsonMotors.API.Controllers
         [HttpGet("availability")]
         [AllowAnonymous]
         [ProducesResponseType(typeof(IEnumerable<DateTime>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> GetAvailability([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
         {
             // Treat incoming date parameters as dates only, in UTC.
@@ -39,10 +39,10 @@ namespace DonaldsonMotors.API.Controllers
             var utcEndDate = DateTime.SpecifyKind(endDate.Date, DateTimeKind.Utc);
 
             if (utcStartDate >= utcEndDate)
-                return BadRequest("Start date must be before end date.");
+                return Problem(detail: "Start date must be before end date.", statusCode: StatusCodes.Status400BadRequest);
 
             if ((utcEndDate - utcStartDate).TotalDays > 60)
-                return BadRequest("The date range cannot be longer than 60 days.");
+                return Problem(detail: "The date range cannot be longer than 60 days.", statusCode: StatusCodes.Status400BadRequest);
 
             _logger.LogInformation("Fetching availability from {UtcStartDate} to {UtcEndDate}", utcStartDate, utcEndDate);
             var availableSlots = await _scheduleService.GetAvailabilityAsync(utcStartDate, utcEndDate);
@@ -63,32 +63,19 @@ namespace DonaldsonMotors.API.Controllers
         [HttpGet("available-mechanics")]
         [Authorize(Roles = Roles.Manager)]
         [ProducesResponseType(typeof(IEnumerable<MechanicAvailabilityDto>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetAvailableMechanicsForSlot([FromQuery] DateTime slotStart, [FromQuery] int serviceTypeId)
         {
             // Ensure the DateTime Kind is UTC, as expected by the service layer.
             var utcSlotStart = DateTime.SpecifyKind(slotStart, DateTimeKind.Utc);
 
             if (serviceTypeId <= 0)
-                return BadRequest("A valid Service Type ID is required.");
+                return Problem(detail: "A valid Service Type ID is required.", statusCode: StatusCodes.Status400BadRequest);
 
             _logger.LogInformation("Manager requesting available mechanics for slot {UtcSlotStart} and ServiceType {ServiceTypeId}", utcSlotStart, serviceTypeId);
-            try
-            {
-                var availableMechanics = await _scheduleService.GetAvailableMechanicsForSlotAsync(utcSlotStart, serviceTypeId);
-                return Ok(availableMechanics);
-            }
-            catch (ServiceTypeNotFoundException ex)
-            {
-                _logger.LogWarning(ex, "Failed to get available mechanics: ServiceType {ServiceTypeId} not found.", serviceTypeId);
-                return NotFound(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching available mechanics for slot {UtcSlotStart}, ServiceType {ServiceTypeId}", utcSlotStart, serviceTypeId);
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
-            }
+            var availableMechanics = await _scheduleService.GetAvailableMechanicsForSlotAsync(utcSlotStart, serviceTypeId);
+            return Ok(availableMechanics);
         }
 
         /// <summary>
@@ -100,18 +87,11 @@ namespace DonaldsonMotors.API.Controllers
         [HttpPut("working-hours")]
         [Authorize(Roles = Roles.Manager)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> UpdateWorkingHours([FromBody] IEnumerable<WorkingDayDto> workingDays)
         {
-            try
-            {
-                await _scheduleService.UpdateWorkingHoursAsync(workingDays);
-                return NoContent();
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            await _scheduleService.UpdateWorkingHoursAsync(workingDays);
+            return NoContent();
         }
 
         /// <summary>
@@ -123,18 +103,11 @@ namespace DonaldsonMotors.API.Controllers
         [HttpPut("lunch-break")]
         [Authorize(Roles = Roles.Manager)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> UpdateLunchBreak([FromBody] LunchBreakDto lunchBreak)
         {
-            try
-            {
-                await _scheduleService.UpdateLunchBreakAsync(lunchBreak);
-                return NoContent();
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            await _scheduleService.UpdateLunchBreakAsync(lunchBreak);
+            return NoContent();
         }
 
         /// <summary>
@@ -161,7 +134,7 @@ namespace DonaldsonMotors.API.Controllers
         [HttpPost("exceptions")]
         [Authorize(Roles = Roles.Manager)]
         [ProducesResponseType(typeof(ScheduleExceptionResponseDto), StatusCodes.Status201Created)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> AddException([FromBody] CreateScheduleExceptionDto exceptionDto)
         {
             var createdException = await _scheduleService.AddScheduleExceptionAsync(exceptionDto);
@@ -177,18 +150,11 @@ namespace DonaldsonMotors.API.Controllers
         [HttpDelete("exceptions/{id}")]
         [Authorize(Roles = Roles.Manager)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteException(int id)
         {
-            try
-            {
-                await _scheduleService.DeleteScheduleExceptionAsync(id);
-                return NoContent();
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(ex.Message);
-            }
+            await _scheduleService.DeleteScheduleExceptionAsync(id);
+            return NoContent();
         }
     }
 }

@@ -78,7 +78,7 @@ public class ProfileTests(ApiFactory app)
 
         var response = await customer.DeleteAsync("/api/users/me/vehicles/SG21ABC");
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     [Fact]

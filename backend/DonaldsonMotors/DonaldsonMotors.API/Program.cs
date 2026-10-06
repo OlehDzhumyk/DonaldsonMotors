@@ -8,6 +8,7 @@ using DonaldsonMotors.API.Data.Entities;
 using DonaldsonMotors.API.Interfaces;
 using DonaldsonMotors.API.Services;
 using DonaldsonMotors.API.Options;
+using DonaldsonMotors.API.Exceptions;
 using RazorLight;
 
 
@@ -31,6 +32,8 @@ var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
 // --- Service Registration ---
 
 builder.Services.AddControllers();
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 
 // Register DbContext
 builder.Services.AddDbContext<AppDbContext>(opts =>
@@ -153,6 +156,9 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline.
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

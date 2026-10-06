@@ -35,34 +35,13 @@ namespace DonaldsonMotors.API.Controllers
         [ProducesResponseType(typeof(object), StatusCodes.Status409Conflict)]
         public async Task<IActionResult> RegisterCustomer([FromBody] RegisterRequestDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
             // Enforce the role is 'Customer' for this public endpoint.
             dto.Role = Roles.Customer;
             _logger.LogInformation("Attempting to register new customer: {Email}", dto.Email);
 
-            try
-            {
-                var response = await _authService.RegisterAsync(dto);
-                _logger.LogInformation("Customer registered successfully: {Email}", dto.Email);
-                return Ok(response);
-            }
-            catch (UserAlreadyExistsException ex)
-            {
-                _logger.LogWarning("Registration failed for {Email}: {Error}", dto.Email, ex.Message);
-                return Conflict(new { message = ex.Message });
-            }
-            catch (RegistrationValidationException ex)
-            {
-                _logger.LogWarning("Registration failed for {Email} due to validation errors.", dto.Email);
-                return BadRequest(new { title = "Registration failed.", errors = ex.Errors });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An unexpected error occurred during customer registration.");
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected registration error occurred.");
-            }
+            var response = await _authService.RegisterAsync(dto);
+            _logger.LogInformation("Customer registered successfully: {Email}", dto.Email);
+            return Ok(response);
         }
 
         /// <summary>
@@ -82,36 +61,10 @@ namespace DonaldsonMotors.API.Controllers
         [ProducesResponseType(typeof(object), StatusCodes.Status409Conflict)]
         public async Task<IActionResult> RegisterStaff([FromBody] RegisterRequestDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
             _logger.LogInformation("Manager attempting to register new staff: {Email}, Role: {Role}", dto.Email, dto.Role);
-            try
-            {
-                var response = await _authService.RegisterAsync(dto);
-                _logger.LogInformation("Staff registered successfully: {Email}", dto.Email);
-                return Ok(response);
-            }
-            catch (UserAlreadyExistsException ex)
-            {
-                _logger.LogWarning("Staff registration failed for {Email}: {Error}", dto.Email, ex.Message);
-                return Conflict(new { message = ex.Message });
-            }
-            catch (InvalidRoleException ex)
-            {
-                _logger.LogWarning("Staff registration failed for {Email}: {Error}", dto.Email, ex.Message);
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (RegistrationValidationException ex)
-            {
-                _logger.LogWarning("Staff registration failed for {Email} due to validation errors.", dto.Email);
-                return BadRequest(new { title = "Registration failed.", errors = ex.Errors });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An unexpected error occurred during staff registration.");
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected registration error occurred.");
-            }
+            var response = await _authService.RegisterAsync(dto);
+            _logger.LogInformation("Staff registered successfully: {Email}", dto.Email);
+            return Ok(response);
         }
 
         /// <summary>
@@ -127,26 +80,10 @@ namespace DonaldsonMotors.API.Controllers
         [ProducesResponseType(typeof(object), StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> Login([FromBody] LoginRequestDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
             _logger.LogInformation("Login attempt for user: {Email}", dto.Email);
-            try
-            {
-                var response = await _authService.LoginAsync(dto);
-                _logger.LogInformation("User {Email} logged in successfully.", dto.Email);
-                return Ok(response);
-            }
-            catch (InvalidCredentialsException ex)
-            {
-                _logger.LogWarning("Failed login attempt for {Email}: {Error}", dto.Email, ex.Message);
-                return Unauthorized(new { message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An unexpected error occurred during login for {Email}.", dto.Email);
-                return StatusCode(StatusCodes.Status500InternalServerError, "An unexpected login error occurred.");
-            }
+            var response = await _authService.LoginAsync(dto);
+            _logger.LogInformation("User {Email} logged in successfully.", dto.Email);
+            return Ok(response);
         }
     }
 }

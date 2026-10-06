@@ -1,4 +1,5 @@
 ﻿using DonaldsonMotors.API.DTOs.Part;
+using DonaldsonMotors.API.Exceptions;
 using DonaldsonMotors.API.Interfaces;
 using DonaldsonMotors.API.Mappers; 
 
@@ -61,7 +62,7 @@ namespace DonaldsonMotors.API.Services
             {
                 var message = $"A part with the same name or barcode already exists (ID: {existingPart.Id}).";
                 _logger.LogWarning(message);
-                throw new InvalidOperationException(message);
+                throw new DuplicateResourceException(message);
             }
 
             var partEntity = dto.ToPartEntity(); // Using mapper
@@ -98,12 +99,12 @@ namespace DonaldsonMotors.API.Services
             if (!string.IsNullOrEmpty(dto.Name) && !existingPart.Name.Equals(dto.Name, StringComparison.OrdinalIgnoreCase))
             {
                 var conflicting = (await _unitOfWork.Parts.FindAsync(p => p.Name.ToLower() == dto.Name.ToLower() && p.Id != id)).FirstOrDefault();
-                if (conflicting != null) throw new InvalidOperationException($"Another part with name '{dto.Name}' already exists.");
+                if (conflicting != null) throw new DuplicateResourceException($"Another part with name '{dto.Name}' already exists.");
             }
             if (!string.IsNullOrEmpty(dto.Barcode) && !string.Equals(existingPart.Barcode, dto.Barcode, StringComparison.OrdinalIgnoreCase))
             {
                 var conflicting = (await _unitOfWork.Parts.FindAsync(p => p.Barcode == dto.Barcode && p.Id != id)).FirstOrDefault();
-                if (conflicting != null) throw new InvalidOperationException($"Another part with barcode '{dto.Barcode}' already exists.");
+                if (conflicting != null) throw new DuplicateResourceException($"Another part with barcode '{dto.Barcode}' already exists.");
             }
 
 
@@ -158,7 +159,7 @@ namespace DonaldsonMotors.API.Services
             if (isUsed)
             {
                 _logger.LogWarning("Cannot delete part {PartId} as it is used in existing jobs.", id);
-                throw new InvalidOperationException("Cannot delete part: it has been used in jobs. Consider marking it as inactive instead.");
+                throw new ResourceInUseException("Cannot delete part: it has been used in jobs. Consider marking it as inactive instead.");
             }
 
             _unitOfWork.Parts.Delete(part);

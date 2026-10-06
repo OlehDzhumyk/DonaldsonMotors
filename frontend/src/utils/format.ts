@@ -26,10 +26,12 @@ const STATUS_LABELS: Record<string, string> = {
 export const statusLabel = (status: string): string => STATUS_LABELS[status] ?? status;
 
 /** Shapes of error bodies the API returns: a plain string, { message }, or ASP.NET validation problems. */
+/** The API answers errors with ProblemDetails (RFC 9457); validation errors add `errors`. */
 interface ApiErrorBody {
     message?: string;
     title?: string;
-    errors?: Record<string, string[]>;
+    detail?: string;
+    errors?: Record<string, string[]> | string[];
 }
 
 /** Turns an API or network error into a message that can be shown to the user. */
@@ -39,6 +41,7 @@ export const getErrorMessage = (err: unknown, fallback: string): string => {
         if (typeof data === 'string') return data || fallback;
         if (data.message) return data.message;
         if (data.errors) return Object.values(data.errors).flat().join(' ');
+        if (data.detail) return data.detail;
         if (data.title) return data.title;
     }
     if (err instanceof Error && err.message) return err.message;
