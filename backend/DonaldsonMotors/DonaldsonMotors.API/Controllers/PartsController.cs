@@ -1,4 +1,4 @@
-﻿using DonaldsonMotors.API.Data.Entities; // Required for Roles
+using DonaldsonMotors.API.Data.Entities; // Required for Roles
 using DonaldsonMotors.API.DTOs.Part;
 using DonaldsonMotors.API.Interfaces;
 using DonaldsonMotors.API.Exceptions; // For custom exceptions if PartService throws them
@@ -9,7 +9,7 @@ namespace DonaldsonMotors.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = $"{Roles.StockController},{Roles.Manager},{Roles.Mechanic}")]
+    [Authorize]
     public class PartsController : ControllerBase
     {
         private readonly IPartService _partService;
@@ -26,7 +26,6 @@ namespace DonaldsonMotors.API.Controllers
         /// Accessible by Managers, Stock Controllers, and Mechanics.
         /// </summary>
         [HttpGet]
-        // Override class-level authorization to include Mechanics for this GET endpoint
         [ProducesResponseType(typeof(IEnumerable<PartResponseDto>), StatusCodes.Status200OK)]
         [Authorize(Roles = $"{Roles.StockController},{Roles.Manager},{Roles.Mechanic}")]
         public async Task<IActionResult> GetAllParts([FromQuery] string? searchTerm, [FromQuery] int? supplierId)
@@ -41,7 +40,6 @@ namespace DonaldsonMotors.API.Controllers
         /// Accessible by Managers, Stock Controllers, and Mechanics.
         /// </summary>
         [HttpGet("{id}")]
-        // Override class-level authorization to include Mechanics for this GET endpoint
         [Authorize(Roles = $"{Roles.StockController},{Roles.Manager},{Roles.Mechanic}")]
         [ProducesResponseType(typeof(PartResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -57,13 +55,14 @@ namespace DonaldsonMotors.API.Controllers
             return Ok(part);
         }
 
-        // POST, PUT, DELETE, PATCH methods remain restricted to Manager and StockController 
-        // by the class-level [Authorize] attribute. No changes needed for them.
+        // Mechanics may only read parts (to add them to a job); changes are for Managers and Stock Controllers.
+        // Roles are set per action because stacked [Authorize] attributes must all pass.
 
         /// <summary>
         /// Creates a new part. (Manager/StockController Only)
         /// </summary>
         [HttpPost]
+        [Authorize(Roles = $"{Roles.StockController},{Roles.Manager}")]
         [ProducesResponseType(typeof(PartResponseDto), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(string), StatusCodes.Status409Conflict)]
@@ -92,6 +91,7 @@ namespace DonaldsonMotors.API.Controllers
         /// Updates an existing part. (Manager/StockController Only)
         /// </summary>
         [HttpPut("{id}")]
+        [Authorize(Roles = $"{Roles.StockController},{Roles.Manager}")]
         [ProducesResponseType(typeof(PartResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
@@ -125,6 +125,7 @@ namespace DonaldsonMotors.API.Controllers
         /// Updates the stock level of a specific part. (Manager/StockController Only)
         /// </summary>
         [HttpPatch("{id}/stock")]
+        [Authorize(Roles = $"{Roles.StockController},{Roles.Manager}")]
         [ProducesResponseType(typeof(PartResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
@@ -155,6 +156,7 @@ namespace DonaldsonMotors.API.Controllers
         /// Deletes a part by its ID. (Manager/StockController Only)
         /// </summary>
         [HttpDelete("{id}")]
+        [Authorize(Roles = $"{Roles.StockController},{Roles.Manager}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]

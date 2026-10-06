@@ -1,8 +1,9 @@
-﻿using DonaldsonMotors.API.Data.Entities;
+using DonaldsonMotors.API.Data.Entities;
 using DonaldsonMotors.API.DTOs.Schedule;
 using DonaldsonMotors.API.Exceptions; // Ensure you have ServiceTypeNotFoundException etc.
 using DonaldsonMotors.API.Interfaces;
-using DonaldsonMotors.API.Mappers; // For EmployeeMapper
+using DonaldsonMotors.API.Mappers;
+using DonaldsonMotors.API.Options; // For EmployeeMapper
 using Microsoft.AspNetCore.Identity;
 
 namespace DonaldsonMotors.API.Services
@@ -25,12 +26,12 @@ namespace DonaldsonMotors.API.Services
 
         /// <summary>
         /// Calculates and returns a list of available booking slots for customers.
-        /// A slot is available if it's within general working hours, not a general holiday, and not during general lunch.
-        /// This version DOES NOT check any existing bookings or mechanic availability/capacity.
+        /// A slot is available if it's within general working hours, not a general holiday, not during general lunch,
+        /// and not already taken by another booking (the garage takes one booking per slot).
         /// </summary>
         public async Task<IEnumerable<DateTime>> GetAvailabilityAsync(DateTime startDateUtc, DateTime endDateUtc)
         {
-            _logger.LogInformation("[SIMPLIFIED] Calculating general availability from {StartDateUtc} to {EndDateUtc} (ignores existing bookings and mechanic capacity)",
+            _logger.LogInformation("Calculating availability from {StartDateUtc} to {EndDateUtc}",
                 startDateUtc, endDateUtc);
 
             var workingHoursList = await _unitOfWork.Schedule.GetWorkingHoursAsync();
@@ -38,6 +39,11 @@ namespace DonaldsonMotors.API.Services
                 ?? new ScheduleSettings { Id = 1, LunchStartTime = new TimeOnly(13, 0), LunchEndTime = new TimeOnly(14, 0) }; // Default if not configured
             var exceptionsList = await _unitOfWork.Schedule.GetExceptionsAsync();
             var queryEndDate = endDateUtc.Date.AddDays(1);
+
+            var takenSlots = (await _unitOfWork.Bookings.FindAsync(b =>
+                    b.SlotStart >= startDateUtc.Date && b.SlotStart < queryEndDate && b.Status != BookingStatus.Cancelled))
+                .Select(b => b.SlotStart)
+                .ToHashSet();
 
             var workingHoursMap = workingHoursList.ToDictionary(wh => wh.DayOfWeek);
             var exceptionsSet = new HashSet<DateOnly>(exceptionsList.Select(e => e.Date));
@@ -63,33 +69,33 @@ namespace DonaldsonMotors.API.Services
                     day, hoursForDay.StartTime, hoursForDay.EndTime, settings.LunchStartTime, settings.LunchEndTime);
 
                 for (var time = hoursForDay.StartTime;
-                     time.AddHours(slotDurationHours) <= hoursForDay.EndTime;
+                     time.AddHours(slotDurationHours) <= hoursForDay.EndTime && time.AddHours(slotDurationHours) > time;
                      time = time.AddHours(slotDurationHours))
                 {
-                    var potentialSlotStartTime = day.Add(time.ToTimeSpan());
-                    potentialSlotStartTime = DateTime.SpecifyKind(potentialSlotStartTime, DateTimeKind.Utc);
-                    var potentialSlotEndTime = potentialSlotStartTime.AddHours(slotDurationHours);
+                    // Opening hours and lunch are garage wall-clock times; the slot itself is returned in UTC
+                    var slotEndLocal = time.AddHours(slotDurationHours);
+                    var potentialSlotStartTime = DateTime.SpecifyKind(GarageTime.ToUtc(day, time), DateTimeKind.Utc);
 
                     if (potentialSlotStartTime < DateTime.UtcNow)
                     {
-                        _logger.LogDebug("Skipping past slot: {PotentialSlotStartTime}", potentialSlotStartTime);
                         continue;
                     }
 
-                    // Check for general lunch break overlap
-                    if (potentialSlotStartTime.TimeOfDay < settings.LunchEndTime.ToTimeSpan() &&
-                        potentialSlotEndTime.TimeOfDay > settings.LunchStartTime.ToTimeSpan())
+                    if (time < settings.LunchEndTime && slotEndLocal > settings.LunchStartTime)
                     {
-                        _logger.LogDebug("Skipping slot {PotentialSlotStartTime} due to general lunch break overlap.", potentialSlotStartTime);
                         continue;
                     }
 
-                    // SIMPLIFIED LOGIC: If it passes garage open/lunch/holiday checks, it's "available"
+                    if (takenSlots.Contains(potentialSlotStartTime))
+                    {
+                        continue;
+                    }
+
                     availableSlots.Add(potentialSlotStartTime);
                 }
             }
 
-            _logger.LogInformation("Found {Count} generally available slots based purely on garage schedule.", availableSlots.Count);
+            _logger.LogInformation("Found {Count} free slots.", availableSlots.Count);
             return availableSlots.OrderBy(s => s);
         }
 

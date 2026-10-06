@@ -36,7 +36,7 @@ namespace DonaldsonMotors.API.Mappers
                 CustomerEmail = booking.Customer?.Email,
 
                 MechanicId = booking.MechanicId,
-                MechanicName = null 
+                MechanicName = booking.Mechanic?.FullName
             };
         }
     }
