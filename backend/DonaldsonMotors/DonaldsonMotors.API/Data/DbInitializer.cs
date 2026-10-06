@@ -1,4 +1,5 @@
 using DonaldsonMotors.API.Data.Entities;
+using DonaldsonMotors.API.Options;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -108,11 +109,11 @@ namespace DonaldsonMotors.API.Data
                     var motorFactorsId = (await context.Suppliers.FirstAsync(s => s.Name == "General Motor Factors")).Id;
 
                     context.Parts.AddRange(
-                        new Part { Name = "Oil Filter Bosch H1", Price = 8.50m, CurrentStockLevel = 50, SupplierId = euroPartsId },
-                        new Part { Name = "5W-30 Synthetic Oil (5L)", Price = 25.00m, CurrentStockLevel = 30, SupplierId = euroPartsId },
-                        new Part { Name = "Brake Pads - Front Set Brembo", Price = 45.00m, CurrentStockLevel = 20, SupplierId = motorFactorsId },
-                        new Part { Name = "Spark Plug NGK BKR6E-11", Price = 4.00m, CurrentStockLevel = 100, SupplierId = motorFactorsId },
-                        new Part { Name = "All Season Tyre 205/55 R16", Price = 65.00m, CurrentStockLevel = 40, SupplierId = euroPartsId }
+                        new Part { Name = "Oil Filter Bosch H1", Price = 8.50m, CostPrice = 5.20m, CurrentStockLevel = 50, SupplierId = euroPartsId },
+                        new Part { Name = "5W-30 Synthetic Oil (5L)", Price = 25.00m, CostPrice = 17.50m, CurrentStockLevel = 30, SupplierId = euroPartsId },
+                        new Part { Name = "Brake Pads - Front Set Brembo", Price = 45.00m, CostPrice = 31.00m, CurrentStockLevel = 20, SupplierId = motorFactorsId },
+                        new Part { Name = "Spark Plug NGK BKR6E-11", Price = 4.00m, CostPrice = 2.40m, CurrentStockLevel = 100, SupplierId = motorFactorsId },
+                        new Part { Name = "All Season Tyre 205/55 R16", Price = 65.00m, CostPrice = 46.00m, CurrentStockLevel = 40, SupplierId = euroPartsId }
                     );
                     logger.LogInformation("Seeded Parts.");
                 }
@@ -134,8 +135,8 @@ namespace DonaldsonMotors.API.Data
     
 
         /// <summary>
-        /// One account per role, a customer with two cars and a few upcoming bookings,
-        /// so every page has something to show right after `docker compose up`.
+        /// One account per role, a few customers with cars, and bookings in every state
+        /// (with jobs, parts, invoices and payments) so every page has something to show.
         /// All demo accounts use the password "Password123!".
         /// </summary>
         private static async Task SeedDemoDataAsync(AppDbContext context, UserManager<ApplicationUser> userManager, ILogger logger)
@@ -146,25 +147,86 @@ namespace DonaldsonMotors.API.Data
             }
 
             const string password = "Password123!";
-            var mechanic = await CreateUserAsync(userManager, new Employee { FullName = "Sam Mechanic" }, "mechanic@donaldson.com", password, Roles.Mechanic);
+            var sam = (Employee)await CreateUserAsync(userManager, new Employee { FullName = "Sam Mechanic" }, "mechanic@donaldson.com", password, Roles.Mechanic);
+            var lee = (Employee)await CreateUserAsync(userManager, new Employee { FullName = "Lee Fraser" }, "lee@donaldson.com", password, Roles.Mechanic);
             await CreateUserAsync(userManager, new Employee { FullName = "Alex Stock" }, "stock@donaldson.com", password, Roles.StockController);
             await CreateUserAsync(userManager, new Employee { FullName = "Jo Accounts" }, "accounts@donaldson.com", password, Roles.AccountsClerk);
-            var customer = (Customer)await CreateUserAsync(userManager, new Customer { FullName = "Jamie Customer", Address = "1 Demo Street, Glasgow" }, "customer@donaldson.com", password, Roles.Customer);
+            var jamie = (Customer)await CreateUserAsync(userManager, new Customer { FullName = "Jamie Customer", Address = "1 Demo Street, Glasgow", PhoneNumber = "07700 900123" }, "customer@donaldson.com", password, Roles.Customer);
+            var priya = (Customer)await CreateUserAsync(userManager, new Customer { FullName = "Priya Shah", PhoneNumber = "07700 900456" }, "priya@example.com", password, Roles.Customer);
+            var tom = (Customer)await CreateUserAsync(userManager, new Customer { FullName = "Tom Walker" }, "tom@example.com", password, Roles.Customer);
 
             context.Vehicles.AddRange(
-                new Vehicle { RegistrationNumber = "SG21ABC", Make = "Ford", Model = "Focus", Year = 2021, Mileage = 24000, OwnerId = customer.Id },
-                new Vehicle { RegistrationNumber = "SK18XYZ", Make = "Vauxhall", Model = "Corsa", Year = 2018, Mileage = 61000, OwnerId = customer.Id });
+                new Vehicle { RegistrationNumber = "SG21ABC", Make = "Ford", Model = "Focus", Year = 2021, Mileage = 24000, OwnerId = jamie.Id },
+                new Vehicle { RegistrationNumber = "SK18XYZ", Make = "Vauxhall", Model = "Corsa", Year = 2018, Mileage = 61000, OwnerId = jamie.Id },
+                new Vehicle { RegistrationNumber = "SA70PRS", Make = "Toyota", Model = "Yaris", Year = 2020, Mileage = 33500, OwnerId = priya.Id },
+                new Vehicle { RegistrationNumber = "SN16TWK", Make = "Volkswagen", Model = "Golf", Year = 2016, Mileage = 88200, OwnerId = tom.Id });
 
-            var serviceTypes = await context.ServiceTypes.OrderBy(st => st.Id).ToListAsync();
-            var day = NextWeekday(DateTime.UtcNow.Date.AddDays(1));
-            var nextDay = NextWeekday(day.AddDays(1));
+            var services = await context.ServiceTypes.ToDictionaryAsync(st => st.Name);
+            var parts = await context.Parts.ToDictionaryAsync(p => p.Name);
+            var today = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc);
+            var next = NextWeekday(today.AddDays(1));
+            var later = NextWeekday(next.AddDays(1));
+
+            // Slots are garage wall-clock times (see GarageTime), stored in UTC
+            static DateTime At(DateTime day, int hour) => DateTime.SpecifyKind(GarageTime.ToUtc(day, new TimeOnly(hour, 0)), DateTimeKind.Utc);
+
+            Booking Book(Customer customer, string reg, string service, DateTime slot, BookingStatus status, Employee? mechanic = null) =>
+                new() { CustomerId = customer.Id, VehicleRegistrationNumber = reg, ServiceTypeId = services[service].Id, SlotStart = slot, Status = status, MechanicId = mechanic?.Id };
+
+            // Upcoming work
             context.Bookings.AddRange(
-                new Booking { CustomerId = customer.Id, VehicleRegistrationNumber = "SG21ABC", ServiceTypeId = serviceTypes[0].Id, SlotStart = day.AddHours(9), Status = BookingStatus.Pending },
-                new Booking { CustomerId = customer.Id, VehicleRegistrationNumber = "SK18XYZ", ServiceTypeId = serviceTypes[3].Id, SlotStart = day.AddHours(11), Status = BookingStatus.Assigned, MechanicId = mechanic.Id },
-                new Booking { CustomerId = customer.Id, VehicleRegistrationNumber = "SG21ABC", ServiceTypeId = serviceTypes[2].Id, SlotStart = nextDay.AddHours(9), Status = BookingStatus.Pending });
+                Book(jamie, "SG21ABC", "Oil Change", At(next, 9), BookingStatus.Pending),
+                Book(priya, "SA70PRS", "Annual Service", At(later, 11), BookingStatus.Pending),
+                Book(jamie, "SK18XYZ", "Brake Pad Replacement", At(next, 11), BookingStatus.Assigned, sam));
+
+            // Being worked on today
+            var inProgress = Book(tom, "SN16TWK", "Tyre Replacement (x1)", At(PreviousWeekday(today), 9), BookingStatus.InProgress, lee);
+            context.Bookings.Add(inProgress);
+            context.Jobs.Add(new Job { Booking = inProgress, MechanicId = lee.Id, StartDate = DateTime.UtcNow.AddHours(-1), Description = "Work started on Tyre Replacement (x1)" });
+
+            // Finished jobs: one waiting for payment, two paid
+            AddFinishedJob(context, Book(priya, "SA70PRS", "Brake Pad Replacement", At(PreviousWeekday(today.AddDays(-1)), 15), BookingStatus.AwaitingPayment, sam),
+                "Replaced front brake pads, checked discs and topped up brake fluid.", 80m, [(parts["Brake Pads - Front Set Brembo"], 1)], paidMethod: null);
+            AddFinishedJob(context, Book(tom, "SN16TWK", "Oil Change", At(PreviousWeekday(today.AddDays(-3)), 11), BookingStatus.Paid, lee),
+                "Drained oil, replaced oil filter, refilled with 5W-30.", 50m, [(parts["Oil Filter Bosch H1"], 1), (parts["5W-30 Synthetic Oil (5L)"], 1)], paidMethod: "Manual (Card at collection)");
+            AddFinishedJob(context, Book(jamie, "SG21ABC", "Annual Service", At(PreviousWeekday(today.AddDays(-10)), 9), BookingStatus.Paid, sam),
+                "Full annual service: oil, filters, spark plugs, fluid levels and safety checks.", 150m, [(parts["Spark Plug NGK BKR6E-11"], 4), (parts["Oil Filter Bosch H1"], 1)], paidMethod: "Manual (Cash)");
+
+            var cancelled = Book(jamie, "SK18XYZ", "Oil Change", At(PreviousWeekday(today.AddDays(-5)), 15), BookingStatus.Cancelled);
+            cancelled.CancellationReason = "Customer: Car was off the road that week, will rebook.";
+            cancelled.CancelledAt = DateTime.UtcNow.AddDays(-7);
+            cancelled.CancelledByUserId = jamie.Id;
+            context.Bookings.Add(cancelled);
 
             await context.SaveChangesAsync();
             logger.LogInformation("Seeded demo accounts, vehicles and bookings.");
+        }
+
+        private static void AddFinishedJob(AppDbContext context, Booking booking, string description, decimal labour,
+            (Part Part, int Quantity)[] usedParts, string? paidMethod)
+        {
+            var partsCost = usedParts.Sum(p => p.Part.Price * p.Quantity);
+            var job = new Job
+            {
+                Booking = booking,
+                MechanicId = booking.MechanicId!.Value,
+                Description = description,
+                LabourCost = labour,
+                PartsCost = partsCost,
+                StartDate = booking.SlotStart,
+                CompletionDate = booking.SlotStart.AddHours(2),
+                JobParts = usedParts.Select(p => new JobPart { PartId = p.Part.Id, QuantityUsed = p.Quantity }).ToList(),
+            };
+            var invoice = new Invoice { Booking = booking, TotalCost = labour + partsCost, DateIssued = job.CompletionDate.Value };
+            context.Bookings.Add(booking);
+            context.Jobs.Add(job);
+            context.Invoices.Add(invoice);
+
+            if (paidMethod != null)
+            {
+                booking.PaidAt = invoice.DateIssued.AddDays(1);
+                context.Payments.Add(new Payment { Invoice = invoice, Amount = invoice.TotalCost, Method = paidMethod, DatePaid = booking.PaidAt.Value });
+            }
         }
 
         private static async Task<ApplicationUser> CreateUserAsync(UserManager<ApplicationUser> userManager, ApplicationUser user, string email, string password, string role)
@@ -179,6 +241,15 @@ namespace DonaldsonMotors.API.Data
             }
             await userManager.AddToRoleAsync(user, role);
             return user;
+        }
+
+        private static DateTime PreviousWeekday(DateTime date)
+        {
+            while (date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+            {
+                date = date.AddDays(-1);
+            }
+            return DateTime.SpecifyKind(date, DateTimeKind.Utc);
         }
 
         private static DateTime NextWeekday(DateTime date)
