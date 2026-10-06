@@ -1,6 +1,6 @@
 # Stage 1: Build the React application
 # Use a Node.js image to build our static files.
-FROM node:18-alpine AS build
+FROM node:22-alpine AS build
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -9,7 +9,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install project dependencies
-RUN npm install
+RUN npm ci
 
 # Copy the rest of the application source code
 COPY . .

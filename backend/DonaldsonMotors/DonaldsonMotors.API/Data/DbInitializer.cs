@@ -1,4 +1,4 @@
-﻿using DonaldsonMotors.API.Data.Entities;
+using DonaldsonMotors.API.Data.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -51,6 +51,18 @@ namespace DonaldsonMotors.API.Data
                     {
                         logger.LogError("Failed to create default manager: {Errors}", string.Join(", ", result.Errors.Select(e => e.Description)));
                     }
+                }
+
+                // Without working hours the availability endpoint returns no slots, so start with Mon–Fri 09:00–17:00.
+                // The manager can change them later through the Schedule endpoints.
+                if (!await context.WorkingHours.AnyAsync())
+                {
+                    foreach (var day in new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday })
+                    {
+                        context.WorkingHours.Add(new WorkingHours { DayOfWeek = day, StartTime = new TimeOnly(9, 0), EndTime = new TimeOnly(17, 0) });
+                    }
+                    await context.SaveChangesAsync();
+                    logger.LogInformation("Seeded default working hours.");
                 }
 
                 // 3. Seed Service Types
@@ -110,8 +122,72 @@ namespace DonaldsonMotors.API.Data
                 {
                     await context.SaveChangesAsync();
                 }
+
+                var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+                if (configuration.GetValue<bool>("SeedDemoData"))
+                {
+                    await SeedDemoDataAsync(context, userManager, logger);
+                }
                 logger.LogInformation("Data seeding completed.");
             }
+        }
+    
+
+        /// <summary>
+        /// One account per role, a customer with two cars and a few upcoming bookings,
+        /// so every page has something to show right after `docker compose up`.
+        /// All demo accounts use the password "Password123!".
+        /// </summary>
+        private static async Task SeedDemoDataAsync(AppDbContext context, UserManager<ApplicationUser> userManager, ILogger logger)
+        {
+            if (await userManager.FindByEmailAsync("customer@donaldson.com") != null)
+            {
+                return;
+            }
+
+            const string password = "Password123!";
+            var mechanic = await CreateUserAsync(userManager, new Employee { FullName = "Sam Mechanic" }, "mechanic@donaldson.com", password, Roles.Mechanic);
+            await CreateUserAsync(userManager, new Employee { FullName = "Alex Stock" }, "stock@donaldson.com", password, Roles.StockController);
+            await CreateUserAsync(userManager, new Employee { FullName = "Jo Accounts" }, "accounts@donaldson.com", password, Roles.AccountsClerk);
+            var customer = (Customer)await CreateUserAsync(userManager, new Customer { FullName = "Jamie Customer", Address = "1 Demo Street, Glasgow" }, "customer@donaldson.com", password, Roles.Customer);
+
+            context.Vehicles.AddRange(
+                new Vehicle { RegistrationNumber = "SG21ABC", Make = "Ford", Model = "Focus", Year = 2021, Mileage = 24000, OwnerId = customer.Id },
+                new Vehicle { RegistrationNumber = "SK18XYZ", Make = "Vauxhall", Model = "Corsa", Year = 2018, Mileage = 61000, OwnerId = customer.Id });
+
+            var serviceTypes = await context.ServiceTypes.OrderBy(st => st.Id).ToListAsync();
+            var day = NextWeekday(DateTime.UtcNow.Date.AddDays(1));
+            var nextDay = NextWeekday(day.AddDays(1));
+            context.Bookings.AddRange(
+                new Booking { CustomerId = customer.Id, VehicleRegistrationNumber = "SG21ABC", ServiceTypeId = serviceTypes[0].Id, SlotStart = day.AddHours(9), Status = BookingStatus.Pending },
+                new Booking { CustomerId = customer.Id, VehicleRegistrationNumber = "SK18XYZ", ServiceTypeId = serviceTypes[3].Id, SlotStart = day.AddHours(11), Status = BookingStatus.Assigned, MechanicId = mechanic.Id },
+                new Booking { CustomerId = customer.Id, VehicleRegistrationNumber = "SG21ABC", ServiceTypeId = serviceTypes[2].Id, SlotStart = nextDay.AddHours(9), Status = BookingStatus.Pending });
+
+            await context.SaveChangesAsync();
+            logger.LogInformation("Seeded demo accounts, vehicles and bookings.");
+        }
+
+        private static async Task<ApplicationUser> CreateUserAsync(UserManager<ApplicationUser> userManager, ApplicationUser user, string email, string password, string role)
+        {
+            user.Email = email;
+            user.UserName = email;
+            user.EmailConfirmed = true;
+            var result = await userManager.CreateAsync(user, password);
+            if (!result.Succeeded)
+            {
+                throw new InvalidOperationException($"Could not create demo user {email}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+            }
+            await userManager.AddToRoleAsync(user, role);
+            return user;
+        }
+
+        private static DateTime NextWeekday(DateTime date)
+        {
+            while (date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+            {
+                date = date.AddDays(1);
+            }
+            return DateTime.SpecifyKind(date, DateTimeKind.Utc);
         }
     }
 }

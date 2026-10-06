@@ -92,14 +92,6 @@ builder.Services.AddScoped<ISupplierService, SupplierService>();
 builder.Services.AddScoped<IPartService, PartService>();
 builder.Services.AddScoped<IServiceTypeService, ServiceTypeService>();
 
-// Remember to add other services like IEmailService if you have them
-
-// --- Web Server Configuration ---
-builder.WebHost.ConfigureKestrel(options =>
-{
-    options.ListenAnyIP(80);
-});
-
 // Configure EmailSettings
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection(EmailSettings.SectionName));
 

@@ -2,7 +2,8 @@ import axios from 'axios';
 import type { EnhancedStore } from '@reduxjs/toolkit';
 
 const apiClient = axios.create({
-    baseURL: 'http://localhost:5000/api',
+    // Same origin: nginx (Docker) or the Vite dev server proxies /api to the backend
+    baseURL: '/api',
     headers: {
         'Content-Type': 'application/json',
     },

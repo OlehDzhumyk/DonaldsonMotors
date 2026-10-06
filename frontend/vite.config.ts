@@ -9,6 +9,10 @@ export default defineConfig({
     port: 5173,
     watch: {
       usePolling: true
+    },
+    // Forward API calls to the backend started with `dotnet run` (or Docker on port 5080)
+    proxy: {
+      '/api': 'http://localhost:5080'
     }
   }
 })
